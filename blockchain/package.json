@@ -1,0 +1,21 @@
+{
+  "name": "zkp-identity-blockchain",
+  "version": "1.0.0",
+  "description": "ZKP Identity Verification - Smart Contracts & Circuits",
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "test": "npx hardhat test",
+    "node": "npx hardhat node",
+    "deploy:local": "npx hardhat run scripts/deploy.js --network localhost",
+    "compile-circuit": "node scripts/compile-circuit.js"
+  },
+  "devDependencies": {
+    "hardhat": "^2.22.0",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0"
+  },
+  "dependencies": {
+    "circomlib": "^2.0.5",
+    "snarkjs": "^0.7.4",
+    "dotenv": "^16.4.5"
+  }
+}

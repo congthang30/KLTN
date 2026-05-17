@@ -1,0 +1,259 @@
+import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision';
+
+let faceLandmarker = null;
+let initPromise = null;
+
+// ── Thresholds ──────────────────────────────────────────────────
+export const THRESHOLDS = {
+  // Head direction thresholds (ratio-based)
+  YAW_LEFT: 0.58,      // ratio < this → looking LEFT
+  YAW_RIGHT: 1.72,     // ratio > this → looking RIGHT
+  PITCH_UP: 0.62,      // ratio < this → looking UP
+  PITCH_DOWN: 1.05,    // ratio > this → looking DOWN
+
+  // Face distance (inter-eye distance in normalized coords)
+  DISTANCE_TOO_FAR: 0.08,    // < this → face too far
+  DISTANCE_TOO_CLOSE: 0.28,  // > this → face too close
+
+  // Hold duration in ms
+  HOLD_DURATION: 2000,
+
+  // Face inside oval tolerance
+  FACE_BOUNDS_TOLERANCE: 0.12,
+};
+
+// ── Key landmark indices (MediaPipe Face Mesh 468 points) ───────
+const LM = {
+  NOSE_TIP: 1,
+  CHIN: 152,
+  LEFT_EYE_OUTER: 33,
+  RIGHT_EYE_OUTER: 263,
+  FOREHEAD: 10,
+  LEFT_MOUTH: 61,
+  RIGHT_MOUTH: 291,
+  LEFT_EYE_INNER: 133,
+  RIGHT_EYE_INNER: 362,
+};
+
+/**
+ * Initialize MediaPipe FaceLandmarker from CDN
+ * Returns a promise that resolves when ready
+ */
+export async function initFaceMesh() {
+  if (faceLandmarker) return faceLandmarker;
+  if (initPromise) return initPromise;
+
+  initPromise = (async () => {
+    try {
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+      );
+
+      faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath:
+            'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+          delegate: 'GPU',
+        },
+        outputFaceBlendshapes: false,
+        outputFacialTransformationMatrixes: false,
+        runningMode: 'VIDEO',
+        numFaces: 1,
+      });
+
+      console.log('✅ MediaPipe FaceLandmarker loaded');
+      return faceLandmarker;
+    } catch (err) {
+      console.error('❌ MediaPipe FaceLandmarker load failed:', err);
+      // Fallback to CPU if GPU fails
+      try {
+        const vision = await FilesetResolver.forVisionTasks(
+          'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+        );
+        faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+          baseOptions: {
+            modelAssetPath:
+              'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+            delegate: 'CPU',
+          },
+          outputFaceBlendshapes: false,
+          outputFacialTransformationMatrixes: false,
+          runningMode: 'VIDEO',
+          numFaces: 1,
+        });
+        console.log('✅ MediaPipe FaceLandmarker loaded (CPU fallback)');
+        return faceLandmarker;
+      } catch (fallbackErr) {
+        initPromise = null;
+        throw fallbackErr;
+      }
+    }
+  })();
+
+  return initPromise;
+}
+
+/**
+ * Detect face landmarks from a video frame
+ * @param {HTMLVideoElement} videoEl 
+ * @param {number} timestampMs 
+ * @returns {Array|null} landmarks array (468 points) or null
+ */
+export function detectLandmarks(videoEl, timestampMs) {
+  if (!faceLandmarker) return null;
+  
+  const result = faceLandmarker.detectForVideo(videoEl, timestampMs);
+  if (!result || !result.faceLandmarks || result.faceLandmarks.length === 0) {
+    return null;
+  }
+  return result.faceLandmarks[0]; // First face only
+}
+
+/**
+ * Compute head pose from face landmarks using geometric heuristics
+ * 
+ * Yaw (left/right): Compare distance from nose to each eye
+ *   - If nose is closer to left eye → looking RIGHT (from user's perspective)
+ *   - If nose is closer to right eye → looking LEFT
+ * 
+ * Pitch (up/down): Compare nose-to-eye vs nose-to-chin vertical ratio
+ *   - If nose is relatively higher → looking UP
+ *   - If nose is relatively lower → looking DOWN
+ * 
+ * @param {Array} landmarks - 468 face landmark points with {x, y, z}
+ * @returns {{ yawRatio: number, pitchRatio: number }}
+ */
+export function computeHeadPose(landmarks) {
+  const nose = landmarks[LM.NOSE_TIP];
+  const leftEye = landmarks[LM.LEFT_EYE_OUTER];
+  const rightEye = landmarks[LM.RIGHT_EYE_OUTER];
+  const chin = landmarks[LM.CHIN];
+  const forehead = landmarks[LM.FOREHEAD];
+
+  // ── Yaw calculation ──
+  // Distance from nose to left eye vs right eye (in X axis)
+  // Note: MediaPipe returns mirrored coords, left eye in image = user's right eye
+  const leftDist = Math.abs(nose.x - leftEye.x);
+  const rightDist = Math.abs(nose.x - rightEye.x);
+  const yawRatio = leftDist / (rightDist + 0.0001); // Avoid division by zero
+
+  // ── Pitch calculation ──
+  // Ratio of nose-to-eye-midpoint vs nose-to-chin (in Y axis)
+  const eyeMidY = (leftEye.y + rightEye.y) / 2;
+  const noseToEyeY = Math.abs(nose.y - eyeMidY);
+  const noseToChinY = Math.abs(chin.y - nose.y);
+  const pitchRatio = noseToEyeY / (noseToChinY + 0.0001);
+
+  return { yawRatio, pitchRatio };
+}
+
+/**
+ * Classify head direction from pose ratios
+ * @param {number} yawRatio 
+ * @param {number} pitchRatio 
+ * @returns {'left'|'right'|'up'|'down'|'center'}
+ */
+export function classifyDirection(yawRatio, pitchRatio) {
+  // Priority: horizontal movements first (easier to detect)
+  if (yawRatio < THRESHOLDS.YAW_LEFT) return 'left';
+  if (yawRatio > THRESHOLDS.YAW_RIGHT) return 'right';
+  if (pitchRatio < THRESHOLDS.PITCH_UP) return 'up';
+  if (pitchRatio > THRESHOLDS.PITCH_DOWN) return 'down';
+  return 'center';
+}
+
+/**
+ * Check face distance from camera using inter-eye distance
+ * @param {Array} landmarks - Face landmarks
+ * @returns {'TOO_FAR'|'TOO_CLOSE'|'OK'}
+ */
+export function checkFaceDistance(landmarks) {
+  const leftEye = landmarks[LM.LEFT_EYE_OUTER];
+  const rightEye = landmarks[LM.RIGHT_EYE_OUTER];
+  
+  // Inter-eye distance in normalized coordinates (0-1)
+  const eyeDistance = Math.abs(rightEye.x - leftEye.x);
+
+  if (eyeDistance < THRESHOLDS.DISTANCE_TOO_FAR) return 'TOO_FAR';
+  if (eyeDistance > THRESHOLDS.DISTANCE_TOO_CLOSE) return 'TOO_CLOSE';
+  return 'OK';
+}
+
+/**
+ * Check if face center is roughly within the oval guide
+ * @param {Array} landmarks
+ * @returns {boolean}
+ */
+export function isFaceInOval(landmarks) {
+  const nose = landmarks[LM.NOSE_TIP];
+  const tolerance = THRESHOLDS.FACE_BOUNDS_TOLERANCE;
+  
+  // Face should be roughly centered (nose near 0.5, 0.5 in normalized coords)
+  return (
+    nose.x > (0.3 - tolerance) &&
+    nose.x < (0.7 + tolerance) &&
+    nose.y > (0.2 - tolerance) &&
+    nose.y < (0.8 + tolerance)
+  );
+}
+
+/**
+ * Generate a random selection of directions for liveness check
+ * @param {number} count - How many directions to pick (default: 3)
+ * @returns {string[]} - e.g. ['right', 'up', 'left']
+ */
+export function generateRandomDirections(count = 3) {
+  const all = ['left', 'right', 'up', 'down'];
+  // Shuffle using Fisher-Yates
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  return all.slice(0, count);
+}
+
+/**
+ * Get display info for a direction
+ * @param {string} direction
+ * @returns {{ label: string, labelVi: string, arrow: string, instruction: string }}
+ */
+export function getDirectionInfo(direction) {
+  const map = {
+    left: {
+      label: 'LEFT',
+      labelVi: 'TRÁI',
+      arrow: '←',
+      instruction: 'Hãy quay mặt sang TRÁI',
+    },
+    right: {
+      label: 'RIGHT',
+      labelVi: 'PHẢI',
+      arrow: '→',
+      instruction: 'Hãy quay mặt sang PHẢI',
+    },
+    up: {
+      label: 'UP',
+      labelVi: 'LÊN',
+      arrow: '↑',
+      instruction: 'Hãy ngẩng mặt LÊN',
+    },
+    down: {
+      label: 'DOWN',
+      labelVi: 'XUỐNG',
+      arrow: '↓',
+      instruction: 'Hãy cúi mặt XUỐNG',
+    },
+  };
+  return map[direction] || map.left;
+}
+
+/**
+ * Cleanup MediaPipe resources
+ */
+export function destroyFaceMesh() {
+  if (faceLandmarker) {
+    faceLandmarker.close();
+    faceLandmarker = null;
+    initPromise = null;
+  }
+}

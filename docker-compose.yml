@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: zkp-mssql
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+
+  blockchain:
+    build:
+      context: ./blockchain
+    container_name: zkp-blockchain
+    ports:
+      - "8545:8545"
+    command: bash -c "chmod +x start.sh && ./start.sh"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: zkp-backend
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=1h
+      - DATABASE_URL=${DATABASE_URL}
+      - BLOCKCHAIN_RPC_URL=http://blockchain:8545
+      - IDENTITY_REGISTRY_ADDRESS=${IDENTITY_REGISTRY_ADDRESS}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - SMTP_HOST=smtp.ethereal.email
+      - SMTP_PORT=587
+      - SMTP_USER=
+      - SMTP_PASS=
+    depends_on:
+      - db
+      - blockchain
+    command: sh -c "echo '⏳ Waiting for MS SQL Server (db:1433) to start...' && until nc -z db 1433; do sleep 2; done && echo '🚀 MS SQL Server port is open! Waiting 10s for SA account initialization...' && sleep 10 && echo '🔥 Database is ready! Running Prisma migrations...' && npx prisma db push && npx prisma db seed && npm run start:dev"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: zkp-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:3001/api
+      - VITE_IDENTITY_REGISTRY_ADDRESS=${IDENTITY_REGISTRY_ADDRESS}
+      - VITE_NETWORK_RPC_URL=http://localhost:8545
+      - VITE_CHAIN_ID=31337
+    depends_on:
+      - backend
+
+volumes:
+  mssql_data:

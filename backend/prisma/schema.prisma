@@ -1,0 +1,67 @@
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              Int      @id @default(autoincrement())
+  username        String   @unique
+  email           String   @unique
+  password        String
+  role            String   @default("USER") // ADMIN | USER
+  walletAddress   String?
+  faceEmbedding   String?  @db.NVarChar(Max) // JSON array of 128 floats
+  faceHash        String?  // BigInt string for ZKP
+  zkpSecret       String?  // AES-256 encrypted
+  zkpCommitment   String?  // BigInt string stored on-chain
+  status          String   @default("PENDING") // PENDING | ACTIVE | SUSPENDED
+  firstLogin      Boolean  @default(true)
+  registrationStep Int     @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Doctor {
+  id          Int      @id @default(autoincrement())
+  name        String
+  specialty   String
+  phone       String
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  diagnoses   Diagnosis[]
+}
+
+model Diagnosis {
+  id          Int      @id @default(autoincrement())
+  patientName String
+  disease     String
+  treatment   String
+  status      String   @default("PENDING")
+  doctorId    Int
+  doctor      Doctor   @relation(fields: [doctorId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BlockchainTransaction {
+  id          Int      @id @default(autoincrement())
+  txHash      String   @unique
+  action      String
+  status      String   @default("CONFIRMED")
+  timestamp   DateTime @default(now())
+}
+
+model AiModel {
+  id          Int      @id @default(autoincrement())
+  name        String
+  version     String
+  accuracy    Float
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
