@@ -6,10 +6,11 @@ let initPromise = null;
 // ── Thresholds ──────────────────────────────────────────────────
 export const THRESHOLDS = {
   // Head direction thresholds (ratio-based)
-  YAW_LEFT: 0.65,      // ratio < this → looking LEFT (was 0.58)
-  YAW_RIGHT: 1.45,     // ratio > this → looking RIGHT (was 1.72)
-  PITCH_UP: 0.80,      // ratio < this → looking UP (was 0.62)
-  PITCH_DOWN: 0.98,    // ratio > this → looking DOWN (was 1.05)
+  // Adjusted to fix the "Look Down" issue and prevent horizontal hijacking
+  YAW_LEFT: 0.50,      // ratio < this → looking LEFT (made more extreme)
+  YAW_RIGHT: 1.70,     // ratio > this → looking RIGHT (made more extreme)
+  PITCH_UP: 0.70,      // ratio < this → looking UP
+  PITCH_DOWN: 0.88,    // ratio > this → looking DOWN (lowered significantly)
 
   // Face distance (inter-eye distance in normalized coords)
   DISTANCE_TOO_FAR: 0.05,    // < this → face too far (was 0.08)
