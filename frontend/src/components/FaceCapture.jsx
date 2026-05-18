@@ -71,7 +71,9 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
+        videoRef.current.play().catch(e => {
+          if (e.name !== 'AbortError') console.warn('Camera play error:', e);
+        });
       }
 
       setStream(mediaStream);

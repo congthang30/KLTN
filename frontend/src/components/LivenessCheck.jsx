@@ -72,7 +72,9 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
 
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        await videoRef.current.play();
+        videoRef.current.play().catch(e => {
+          if (e.name !== 'AbortError') console.warn('Camera play error:', e);
+        });
       }
 
       setStatus('active');
