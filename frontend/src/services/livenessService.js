@@ -6,20 +6,20 @@ let initPromise = null;
 // ── Thresholds ──────────────────────────────────────────────────
 export const THRESHOLDS = {
   // Head direction thresholds (ratio-based)
-  YAW_LEFT: 0.58,      // ratio < this → looking LEFT
-  YAW_RIGHT: 1.72,     // ratio > this → looking RIGHT
-  PITCH_UP: 0.62,      // ratio < this → looking UP
-  PITCH_DOWN: 1.05,    // ratio > this → looking DOWN
+  YAW_LEFT: 0.65,      // ratio < this → looking LEFT (was 0.58)
+  YAW_RIGHT: 1.45,     // ratio > this → looking RIGHT (was 1.72)
+  PITCH_UP: 0.80,      // ratio < this → looking UP (was 0.62)
+  PITCH_DOWN: 0.98,    // ratio > this → looking DOWN (was 1.05)
 
   // Face distance (inter-eye distance in normalized coords)
-  DISTANCE_TOO_FAR: 0.08,    // < this → face too far
-  DISTANCE_TOO_CLOSE: 0.28,  // > this → face too close
+  DISTANCE_TOO_FAR: 0.05,    // < this → face too far (was 0.08)
+  DISTANCE_TOO_CLOSE: 0.35,  // > this → face too close (was 0.28)
 
   // Hold duration in ms
-  HOLD_DURATION: 2000,
+  HOLD_DURATION: 1200,       // Reduced from 2000ms for faster UX
 
   // Face inside oval tolerance
-  FACE_BOUNDS_TOLERANCE: 0.12,
+  FACE_BOUNDS_TOLERANCE: 0.20, // (was 0.12)
 };
 
 // ── Key landmark indices (MediaPipe Face Mesh 468 points) ───────
