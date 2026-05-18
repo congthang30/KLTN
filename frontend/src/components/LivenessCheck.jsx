@@ -44,6 +44,7 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
   const [faceDetected, setFaceDetected] = useState(false);
   const [message, setMessage] = useState('Đang tải mô hình nhận diện...');
   const [allPassed, setAllPassed] = useState(false);
+  const [debugInfo, setDebugInfo] = useState({ yaw: 0, pitch: 0, dir: 'center' });
 
   // ── Initialize ──────────────────────────────────────────────────
   useEffect(() => {
@@ -136,10 +137,7 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
       const dist = checkFaceDistance(landmarks);
       setDistanceStatus(dist);
 
-      // Check face is in oval
-      const inOval = isFaceInOval(landmarks);
-
-      if (dist !== 'OK' || !inOval) {
+      if (dist !== 'OK') {
         setProgress(0);
         holdStartRef.current = null;
         setDetectedDir('center');
@@ -147,10 +145,11 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
         return;
       }
 
-      // Compute head pose
+      // Compute head pose (no longer blocked by isFaceInOval)
       const { yawRatio, pitchRatio } = computeHeadPose(landmarks);
       const dir = classifyDirection(yawRatio, pitchRatio);
       setDetectedDir(dir);
+      setDebugInfo({ yaw: yawRatio, pitch: pitchRatio, dir });
 
       // Draw landmarks on canvas
       drawLandmarks(landmarks);
@@ -351,6 +350,25 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
             </p>
           </div>
         )}
+
+        {/* Debug overlay - shows real-time detection values */}
+        {status === 'active' && !allPassed && (
+          <div style={{
+            position: 'absolute',
+            bottom: 8, left: 8,
+            background: 'rgba(0,0,0,0.75)',
+            color: '#a5b4fc',
+            fontSize: '0.65rem',
+            fontFamily: 'monospace',
+            padding: '4px 8px',
+            borderRadius: 6,
+            zIndex: 15,
+            lineHeight: 1.5,
+          }}>
+            <div>YAW: {debugInfo.yaw.toFixed(3)} | PITCH: {debugInfo.pitch.toFixed(3)}</div>
+            <div>Detected: <span style={{ color: debugInfo.dir !== 'center' ? '#10b981' : '#fca5a5', fontWeight: 700 }}>{debugInfo.dir.toUpperCase()}</span></div>
+          </div>
+        )}
       </div>
 
       {/* Warning message */}
@@ -463,6 +481,7 @@ const canvasStyle = {
   inset: 0,
   width: '100%',
   height: '100%',
+  objectFit: 'cover', // Match video cropping
   pointerEvents: 'none',
   transform: 'scaleX(-1)', // Mirror to match video
 };

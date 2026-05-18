@@ -6,21 +6,25 @@ let initPromise = null;
 // ── Thresholds ──────────────────────────────────────────────────
 export const THRESHOLDS = {
   // Head direction thresholds (ratio-based)
-  // Adjusted to fix the "Look Down" issue and prevent horizontal hijacking
-  YAW_LEFT: 0.50,      // ratio < this → looking LEFT (made more extreme)
-  YAW_RIGHT: 1.70,     // ratio > this → looking RIGHT (made more extreme)
-  PITCH_UP: 0.70,      // ratio < this → looking UP
-  PITCH_DOWN: 0.88,    // ratio > this → looking DOWN (lowered significantly)
+  // Yaw center ≈ 1.0, Pitch center ≈ 0.85
+  YAW_LEFT: 0.78,      // ratio < this → looking LEFT
+  YAW_RIGHT: 1.28,     // ratio > this → looking RIGHT
+  PITCH_UP: 0.65,      // ratio < this → looking UP
+  PITCH_DOWN: 0.95,    // ratio > this → looking DOWN
+
+  // Minimum deviation from center to count as a direction
+  MIN_YAW_DEVIATION: 0.18,   // |yawRatio - 1.0| must exceed this
+  MIN_PITCH_DEVIATION: 0.12, // |pitchRatio - 0.85| must exceed this
 
   // Face distance (inter-eye distance in normalized coords)
-  DISTANCE_TOO_FAR: 0.05,    // < this → face too far (was 0.08)
-  DISTANCE_TOO_CLOSE: 0.35,  // > this → face too close (was 0.28)
+  DISTANCE_TOO_FAR: 0.05,
+  DISTANCE_TOO_CLOSE: 0.35,
 
   // Hold duration in ms
-  HOLD_DURATION: 1200,       // Reduced from 2000ms for faster UX
+  HOLD_DURATION: 1000,
 
   // Face inside oval tolerance
-  FACE_BOUNDS_TOLERANCE: 0.20, // (was 0.12)
+  FACE_BOUNDS_TOLERANCE: 0.25,
 };
 
 // ── Key landmark indices (MediaPipe Face Mesh 468 points) ───────
@@ -155,11 +159,32 @@ export function computeHeadPose(landmarks) {
  * @returns {'left'|'right'|'up'|'down'|'center'}
  */
 export function classifyDirection(yawRatio, pitchRatio) {
-  // Priority: horizontal movements first (easier to detect)
-  if (yawRatio < THRESHOLDS.YAW_LEFT) return 'left';
-  if (yawRatio > THRESHOLDS.YAW_RIGHT) return 'right';
-  if (pitchRatio < THRESHOLDS.PITCH_UP) return 'up';
-  if (pitchRatio > THRESHOLDS.PITCH_DOWN) return 'down';
+  // Calculate how far each ratio deviates from its "center" value
+  // Yaw center ≈ 1.0 (nose equidistant from both eyes)
+  // Pitch center ≈ 0.85 (nose naturally closer to eyes than to chin)
+  const yawDeviation = Math.abs(yawRatio - 1.0);
+  const pitchDeviation = Math.abs(pitchRatio - 0.85);
+
+  const yawSignificant = yawDeviation >= THRESHOLDS.MIN_YAW_DEVIATION;
+  const pitchSignificant = pitchDeviation >= THRESHOLDS.MIN_PITCH_DEVIATION;
+
+  // If both axes are significant, pick the one with larger deviation
+  if (yawSignificant && pitchSignificant) {
+    if (yawDeviation > pitchDeviation) {
+      return yawRatio < 1.0 ? 'left' : 'right';
+    } else {
+      return pitchRatio < 0.85 ? 'up' : 'down';
+    }
+  }
+
+  // Only one axis is significant
+  if (yawSignificant) {
+    return yawRatio < 1.0 ? 'left' : 'right';
+  }
+  if (pitchSignificant) {
+    return pitchRatio < 0.85 ? 'up' : 'down';
+  }
+
   return 'center';
 }
 
