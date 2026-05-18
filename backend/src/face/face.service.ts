@@ -8,58 +8,94 @@ export class FaceService {
 
   /**
    * Register face embedding for a user
-   * @param userId - User ID
-   * @param embedding - 128-dimensional face embedding array
+   * Admin → stores in AdminProfile
+   * Doctor → stores in DoctorProfile
    */
-  async registerFace(userId: number, embedding: number[]) {
-    // Hash embedding to a BigInt for ZKP circuit
+  async registerFace(userId: string, embedding: number[]) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { adminProfile: true, doctorProfile: true },
+    });
+    if (!user) throw new Error('User not found');
+
     const faceHash = this.hashEmbedding(embedding);
     const faceEmbedding = JSON.stringify(embedding);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { faceEmbedding, faceHash, registrationStep: 3 },
-    });
+    if (user.role === 'ADMIN' && user.adminProfile) {
+      await this.prisma.adminProfile.update({
+        where: { userId },
+        data: { faceEmbedding, faceHash },
+      });
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { registrationStep: 2 },
+      });
+    } else if (user.doctorProfile) {
+      await this.prisma.doctorProfile.update({
+        where: { userId },
+        data: { faceEmbedding, faceEmbeddingHash: faceHash },
+      });
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { registrationStep: 3 },
+      });
+    } else {
+      // Fallback: update user registration step only
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { registrationStep: 2 },
+      });
+    }
 
     return { message: 'Face registered successfully', faceHash };
   }
 
   /**
    * Verify face embedding against stored data
-   * @returns similarity score and match result
    */
-  async verifyFace(userId: number, embedding: number[]) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.faceEmbedding) {
+  async verifyFace(userId: string, embedding: number[]) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { adminProfile: true, doctorProfile: true },
+    });
+    if (!user) return { match: false, similarity: 0, message: 'User not found' };
+
+    let storedEmbedding: string | null = null;
+    let storedFaceHash: string | null = null;
+
+    if (user.role === 'ADMIN' && user.adminProfile) {
+      storedEmbedding = user.adminProfile.faceEmbedding;
+      storedFaceHash = user.adminProfile.faceHash;
+    } else if (user.doctorProfile) {
+      storedEmbedding = user.doctorProfile.faceEmbedding;
+      storedFaceHash = user.doctorProfile.faceEmbeddingHash;
+    }
+
+    if (!storedEmbedding) {
       return { match: false, similarity: 0, message: 'No face registered' };
     }
 
-    const stored: number[] = JSON.parse(user.faceEmbedding);
+    const stored: number[] = JSON.parse(storedEmbedding);
     const similarity = this.cosineSimilarity(embedding, stored);
     const match = similarity >= 0.85;
 
     return {
       match,
       similarity,
-      faceHash: match ? user.faceHash : null,
+      faceHash: match ? storedFaceHash : null,
       message: match ? 'Face verified' : 'Face does not match',
     };
   }
 
   /**
    * Hash a face embedding to a BigInt string for use in ZKP circuit
-   * Quantizes floats to integers, then hashes with SHA-256, then takes modulo of BN254 field
    */
   private hashEmbedding(embedding: number[]): string {
-    // Quantize: multiply by 10000 and round to get integers
     const quantized = embedding.map((v) => Math.round(v * 10000));
     const buffer = Buffer.from(quantized.join(','));
     const hash = crypto.createHash('sha256').update(buffer).digest('hex');
-
-    // Convert to BigInt and take modulo of BN254 scalar field
     const bn254Prime = BigInt('21888242871839275222246405745257275088548364400416034343698204186575808495617');
     const hashBigInt = BigInt('0x' + hash) % bn254Prime;
-
     return hashBigInt.toString();
   }
 

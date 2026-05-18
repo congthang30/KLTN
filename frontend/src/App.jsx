@@ -14,6 +14,7 @@ function ProtectedRoute({ children, requiredRole, pageType = 'secure' }) {
   if (!token) return <Navigate to="/login" replace />;
   
   // Rule 2: Nếu là lần đăng nhập đầu tiên, bắt buộc ở trang register để hoàn thành thiết lập
+  // (Cả Admin lần đầu dùng invite token và Doctor lần đầu dùng temp password)
   if (user?.firstLogin) {
     if (pageType === 'register') return children;
     return <Navigate to="/register" replace />;

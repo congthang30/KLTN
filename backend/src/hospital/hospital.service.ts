@@ -1,25 +1,33 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class HospitalService {
+  constructor(private prisma: PrismaService) {}
+
   async getDoctors() {
-    return prisma.doctor.findMany();
+    return this.prisma.doctorProfile.findMany({
+      include: { user: { select: { id: true, username: true, email: true, status: true } } },
+    });
   }
 
   async getDiagnoses() {
-    return prisma.diagnosis.findMany({
-      include: { doctor: true }
+    return this.prisma.aiDiagnosis.findMany({
+      include: {
+        doctor: true,
+        aiModel: true,
+        finalConclude: true,
+      },
     });
   }
 
   async getBlockchainTransactions() {
-    return prisma.blockchainTransaction.findMany();
+    return this.prisma.blockchainHistory.findMany({
+      orderBy: { confirmTime: 'desc' },
+    });
   }
 
   async getAiModels() {
-    return prisma.aiModel.findMany();
+    return this.prisma.aiModelInfo.findMany();
   }
 }

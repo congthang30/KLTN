@@ -117,6 +117,28 @@ contract IdentityRegistry {
     }
 
     /**
+     * @notice Super Admin (Backend Relayer): update wallet address for an identity
+     * @dev Used when an Admin loses their wallet and recovers via MFA on the backend
+     */
+    function updateAdminWallet(uint256 _commitment, address _newAddress) external onlyAdmin {
+        require(identities[_commitment].isActive, "IdentityRegistry: identity not active");
+        require(_newAddress != address(0), "IdentityRegistry: zero new address");
+        require(
+            addressToCommitment[_newAddress] == 0,
+            "IdentityRegistry: new address already has identity"
+        );
+
+        address oldAddress = identities[_commitment].walletAddress;
+
+        // Update mappings
+        delete addressToCommitment[oldAddress];
+        identities[_commitment].walletAddress = _newAddress;
+        addressToCommitment[_newAddress] = _commitment;
+
+        emit WalletRecovered(_commitment, oldAddress, _newAddress);
+    }
+
+    /**
      * @notice Check if an address is authorized (has active identity)
      */
     function isAuthorized(address _addr) external view returns (bool) {

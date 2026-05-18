@@ -19,13 +19,33 @@ export class UserController {
   async createUser(@Body() dto: CreateUserDto) {
     const result = await this.userService.createUser(dto.username, dto.email, dto.role);
 
-    // Send credentials via email
-    await this.emailService.sendCredentials(dto.email, dto.username, result.tempPassword);
+    if (dto.role === 'ADMIN' && 'inviteToken' in result) {
+      // Send invite token via email (Admin has NO password)
+      await this.emailService.sendCredentials(
+        dto.email,
+        dto.username,
+        `Invite Token: ${result.inviteToken}\n\nUse this token at the login page to set up your wallet and face authentication.`,
+      );
 
-    return {
-      message: 'User created successfully. Credentials sent via email.',
-      user: result.user,
-    };
+      return {
+        message: 'Admin created successfully. Invite token sent via email.',
+        user: result.user,
+        inviteToken: result.inviteToken, // Also return for dev convenience
+      };
+    } else if ('tempPassword' in result) {
+      // Send temp password via email (Doctor uses password)
+      await this.emailService.sendCredentials(dto.email, dto.username, result.tempPassword);
+
+      return {
+        message: 'User created successfully. Credentials sent via email.',
+        user: result.user,
+      };
+    } else {
+      return {
+        message: 'User created successfully.',
+        user: result.user,
+      };
+    }
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

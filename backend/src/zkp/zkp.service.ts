@@ -60,78 +60,88 @@ export class ZkpService {
   }
 
   /**
-   * Full registration flow: reuse or generate secret → compute commitment → store
-   * Secret is now generated at first login (via AuthService.generateSecret)
-   * and reused here. It is NOT returned again.
+   * Full registration flow for Admin:
+   * Reuse or generate secret → compute commitment → store in AdminProfile
+   * This is called during Admin first-time registration (Step 3: ZKP Identity)
    */
-  async registerIdentity(userId: number, faceHash: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    
+  async registerIdentity(userId: string, faceHash: string) {
+    const adminProfile = await this.prisma.adminProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!adminProfile) {
+      throw new Error('AdminProfile not found. Ensure user is an Admin.');
+    }
+
     let secret: string;
-    if (user?.zkpSecret) {
-      // Reuse secret that was generated during first login
+    if (adminProfile.zkpSecret) {
+      // Reuse secret if already generated
       try {
-        secret = this.decryptSecret(user.zkpSecret);
+        secret = this.decryptSecret(adminProfile.zkpSecret);
       } catch {
-        // If decryption fails, generate a new one as fallback
+        // If decryption fails, generate a new one
         secret = this.generateSecret();
         const encrypted = this.encryptSecret(secret);
-        await this.prisma.user.update({
-          where: { id: userId },
+        await this.prisma.adminProfile.update({
+          where: { userId },
           data: { zkpSecret: encrypted },
         });
       }
     } else {
-      // Fallback: generate new secret if none exists (edge case)
+      // Generate new secret
       secret = this.generateSecret();
       const encryptedSecret = this.encryptSecret(secret);
-      await this.prisma.user.update({
-        where: { id: userId },
+      await this.prisma.adminProfile.update({
+        where: { userId },
         data: { zkpSecret: encryptedSecret },
       });
     }
 
     const commitment = await this.computeCommitment(secret, faceHash);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { 
-        zkpCommitment: commitment,
-      },
+    await this.prisma.adminProfile.update({
+      where: { userId },
+      data: { zkpCommitment: commitment },
     });
 
     return {
-      // Secret is NOT returned here - it was already shown at first login
+      // Secret is NOT returned here - it was already shown via MFA secret at setup
       commitment,
       message: 'ZKP identity registered successfully',
     };
   }
 
   /**
-   * Finalize registration step: set firstLogin to false and registrationStep to 5
+   * Finalize registration: set firstLogin to false and registrationStep to done
    */
-  async completeRegistration(userId: number) {
+  async completeRegistration(userId: string) {
+    // Invalidate invite token after registration is complete
     return this.prisma.user.update({
       where: { id: userId },
       data: {
         firstLogin: false,
-        registrationStep: 5,
+        registrationStep: 4, // 1:face, 2:wallet, 3:zkp, 4:done
+        inviteToken: null,
+        inviteTokenExpiry: null,
       },
     });
   }
 
   /**
-   * Get commitment and faceHash for recovery proof generation
+   * Get commitment and faceHash for recovery proof generation (Admin only)
    */
-  async getRecoveryData(userId: number) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.zkpCommitment || !user.faceHash) {
+  async getRecoveryData(userId: string) {
+    const adminProfile = await this.prisma.adminProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!adminProfile || !adminProfile.zkpCommitment || !adminProfile.faceHash) {
       return null;
     }
 
     return {
-      commitment: user.zkpCommitment,
-      faceHash: user.faceHash,
+      commitment: adminProfile.zkpCommitment,
+      faceHash: adminProfile.faceHash,
     };
   }
 }

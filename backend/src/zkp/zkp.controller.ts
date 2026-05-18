@@ -16,15 +16,25 @@ export class ZkpController {
 
   /**
    * Register ZKP identity (called after face registration)
+   * Reads faceHash from AdminProfile (for Admin) or DoctorProfile (for Doctor)
    */
   @UseGuards(JwtAuthGuard)
   @Post('register')
   async registerIdentity(@Request() req) {
     const user = await this.userService.findById(req.user.sub);
-    if (!user.faceHash) {
+
+    // Get faceHash based on role
+    let faceHash: string | null = null;
+    if (user.adminProfile?.faceHash) {
+      faceHash = user.adminProfile.faceHash;
+    } else if (user.doctorProfile?.faceEmbeddingHash) {
+      faceHash = user.doctorProfile.faceEmbeddingHash;
+    }
+
+    if (!faceHash) {
       return { error: 'Please register your face first' };
     }
-    return this.zkpService.registerIdentity(req.user.sub, user.faceHash);
+    return this.zkpService.registerIdentity(req.user.sub, faceHash);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -121,6 +121,30 @@ describe("IdentityRegistry", function () {
       ).to.be.revertedWith("IdentityRegistry: caller is not admin");
     });
 
+    it("should allow admin to update wallet address", async function () {
+      const commitment = 12345n;
+      await registry.connect(user1).registerIdentity(commitment);
+
+      await expect(registry.connect(admin).updateAdminWallet(commitment, user2.address))
+        .to.emit(registry, "WalletRecovered")
+        .withArgs(commitment, user1.address, user2.address);
+
+      const [newAddr, isActive] = await registry.getIdentity(commitment);
+      expect(newAddr).to.equal(user2.address);
+      expect(isActive).to.be.true;
+      expect(await registry.isAuthorized(user1.address)).to.be.false;
+      expect(await registry.isAuthorized(user2.address)).to.be.true;
+    });
+
+    it("should reject updateAdminWallet from non-admin", async function () {
+      const commitment = 12345n;
+      await registry.connect(user1).registerIdentity(commitment);
+      
+      await expect(
+        registry.connect(user2).updateAdminWallet(commitment, user2.address)
+      ).to.be.revertedWith("IdentityRegistry: caller is not admin");
+    });
+
     it("should update verifier", async function () {
       const MockVerifier2 = await hre.ethers.getContractFactory("MockVerifier");
       const newVerifier = await MockVerifier2.deploy();

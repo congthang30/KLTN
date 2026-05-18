@@ -1,67 +1,172 @@
-datasource db {
-  provider = "sqlserver"
-  url      = env("DATABASE_URL")
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
 model User {
-  id              Int      @id @default(autoincrement())
+  id              String   @id @default(uuid())
   username        String   @unique
   email           String   @unique
-  password        String
-  role            String   @default("USER") // ADMIN | USER
-  walletAddress   String?
-  faceEmbedding   String?  @db.NVarChar(Max) // JSON array of 128 floats
-  faceHash        String?  // BigInt string for ZKP
-  zkpSecret       String?  // AES-256 encrypted
-  zkpCommitment   String?  // BigInt string stored on-chain
+  password        String?  // NULL for Admin (wallet-only auth), required for Doctor
+  role            String   @default("DOCTOR") // ADMIN | DOCTOR | PATIENT
+
   status          String   @default("PENDING") // PENDING | ACTIVE | SUSPENDED
   firstLogin      Boolean  @default(true)
   registrationStep Int     @default(1)
+
+  // Invite token: dùng cho Admin first-time registration (thay thế password)
+  inviteToken       String?  @unique
+  inviteTokenExpiry DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  adminProfile    AdminProfile?
+  doctorProfile   DoctorProfile?
+  passwordResets  PasswordResetStatus[]
+}
+
+model AdminProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adminUserName   String   @unique
+  walletAddress   String?  @unique
+
+  // ZKP Fields (Chỉ Admin mới có ví Web3 + ZKP)
+  zkpPublicKey    String?  // Public key cho ZKP verify
+  zkpSecret       String?  // Encrypted ZKP secret (AES-256), chỉ hiện 1 lần cho Admin
+  zkpCommitment   String?  // Poseidon(secret, faceHash) - đăng ký on-chain
+  nonce           String?  // Challenge nonce cho phiên đăng nhập
+
+  // MFA / Secret Key (Mã bí mật khôi phục ví)
+  mfaSecret       String?  // Mã bí mật khôi phục (hiện 1 lần, dùng khi mất ví)
+  mfaExpiry       DateTime?
+
+  // Biometric (Khuôn mặt cho Admin)
+  faceEmbedding   String?  // JSON array of face embedding vectors
+  faceHash        String?  // Hash of face embedding dùng cho ZKP circuit input
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
 
-model Doctor {
-  id          Int      @id @default(autoincrement())
-  name        String
-  specialty   String
-  phone       String
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  diagnoses   Diagnosis[]
+model DoctorProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  doctorName          String
+  licenseId           String   @unique
+  faceEmbedding       String?  // JSON array of face embedding vectors (for face login)
+  faceEmbeddingHash   String?  // Hash of face embedding (legacy)
+  dateOfBirth         DateTime
+  identityNumber      String   @unique
+  specialties         String
+  degree              String
+  facultyOfWork       String
+  position            String
+  workingStartDate    DateTime
+  doctorStatus        String   @default("ACTIVE")
+
+  // Blockchain history linked to doctor
+  blockchainHistoryId String?  @unique
+  blockchainHistory   BlockchainHistory? @relation("DoctorBlockchain", fields: [blockchainHistoryId], references: [id])
+
+  diagnoses           AiDiagnosis[]
+  aiQualities         AiQuality[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
-model Diagnosis {
-  id          Int      @id @default(autoincrement())
-  patientName String
-  disease     String
-  treatment   String
-  status      String   @default("PENDING")
-  doctorId    Int
-  doctor      Doctor   @relation(fields: [doctorId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model BlockchainHistory {
+  id                  String   @id @default(uuid())
+  transactionId       String   @unique
+  confirmTime         DateTime
+  blockchainStatus    String   // SUCCESS | FAILED | PENDING
+  errorReason         String?
+  errorLog            String?
+  retryCount          Int      @default(0)
+
+  doctorProfile       DoctorProfile? @relation("DoctorBlockchain")
+  doctorConclude      DoctorFinalConclude? @relation("ConcludeBlockchain")
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
-model BlockchainTransaction {
-  id          Int      @id @default(autoincrement())
-  txHash      String   @unique
-  action      String
-  status      String   @default("CONFIRMED")
-  timestamp   DateTime @default(now())
+model AiModelInfo {
+  id            String   @id @default(uuid())
+  modelName     String
+  version       String
+
+  diagnoses     AiDiagnosis[]
+  aiQualities   AiQuality[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
-model AiModel {
-  id          Int      @id @default(autoincrement())
-  name        String
-  version     String
-  accuracy    Float
-  status      String   @default("ACTIVE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model AiDiagnosis {
+  id                          String   @id @default(uuid())
+  doctorId                    String
+  doctor                      DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  aiModelId                   String
+  aiModel                     AiModelInfo @relation(fields: [aiModelId], references: [id])
+
+  inputImageHash              String
+  aiDiagnoseConfidentResults  String   // JSON string
+  aiDiagnoseSegmentImageHash  String
+  diagnoseStatus              String   @default("PENDING")
+
+  finalConclude               DoctorFinalConclude?
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+model DoctorFinalConclude {
+  id                          String   @id @default(uuid())
+  diagnoseId                  String   @unique
+  diagnose                    AiDiagnosis @relation(fields: [diagnoseId], references: [id], onDelete: Cascade)
+
+  finalConclusionMessageHash  String
+  treatmentRegimen            String
+  note                        String?
+
+  blockchainHistoryId         String?  @unique
+  blockchainHistory           BlockchainHistory? @relation("ConcludeBlockchain", fields: [blockchainHistoryId], references: [id])
+
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+model AiQuality {
+  id                        String   @id @default(uuid())
+  doctorId                  String
+  doctor                    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  aiModelId                 String
+  aiModel                   AiModelInfo @relation(fields: [aiModelId], references: [id])
+
+  doctorConclusionAboutModel String
+  trustablePercent          Float
+
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+}
+
+model PasswordResetStatus {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  securityCode  String
+  status        String   // PENDING | SUCCESS | EXPIRED
+  expiredTime   DateTime
 }

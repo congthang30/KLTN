@@ -5,6 +5,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { ZkpModule } from '../zkp/zkp.module';
+import { BlockchainModule } from '../blockchain/blockchain.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ZkpModule } from '../zkp/zkp.module';
       signOptions: { expiresIn: process.env.JWT_EXPIRATION || '1h' },
     }),
     ZkpModule,
+    BlockchainModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],

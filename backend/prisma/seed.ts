@@ -1,99 +1,195 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting database seeding...');
 
-  // Check if an admin already exists
-  const existingAdmin = await prisma.user.findFirst({
-    where: {
-      role: 'ADMIN',
+  // ============================================================
+  // Admin: NO seed data. Super Admin creates Admin accounts
+  // via the API with invite tokens. This is intentional security.
+  // ============================================================
+  console.log('ℹ️  Admin accounts: Not seeded. Super Admin creates via API with invite tokens.');
+
+  // ============================================================
+  // Seed sample Doctor accounts (with temp password for first login)
+  // ============================================================
+  console.log('🌱 Seeding sample Doctor accounts...');
+
+  const tempPassword = await bcrypt.hash('doctor123', 10);
+
+  const doctor1User = await prisma.user.upsert({
+    where: { username: 'dr.john.doe' },
+    update: {},
+    create: {
+      username: 'dr.john.doe',
+      email: 'john.doe@hospital.vn',
+      password: tempPassword,
+      role: 'DOCTOR',
+      status: 'PENDING',
+      firstLogin: true,
+      registrationStep: 1,
     },
   });
 
-  if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash('anhduc9A@5', 10);
-    
-    const admin = await prisma.user.create({
-      data: {
-        username: 'admin',
-        email: 'duc19092005d@gmail.com',
-        password: hashedPassword,
-        role: 'ADMIN',
-        status: 'ACTIVE',
-        firstLogin: true, // Bắt buộc đăng ký ban đầu
-        registrationStep: 1, // Bắt đầu ở bước 1
-      },
-    });
-
-    console.log('✅ Admin user created successfully:');
-    console.log(`   Username: ${admin.username}`);
-    console.log('   Password: anhduc9A@5');
-    console.log(`   Email: ${admin.email}`);
-  } else {
-    // Nếu admin đã tồn tại, tự động reset trạng thái về firstLogin: true để người dùng trải nghiệm luồng đăng ký khuôn mặt và ví
-    await prisma.user.update({
-      where: { id: existingAdmin.id },
-      data: { 
-        firstLogin: true, 
-        registrationStep: 1, // Reset về bước 1
-        faceEmbedding: null, 
-        faceHash: null,
-        walletAddress: null,
-        zkpSecret: null,
-        zkpCommitment: null
-      }
-    });
-    console.log('🔄 Reset existing admin to firstLogin: true for face & wallet setup.');
-  }
-
-  // Seed Hospital Data
-  console.log('🌱 Seeding hospital mock data...');
-
-  // 1. Doctors
-  const doctor1 = await prisma.doctor.create({
-    data: { name: 'Dr. John Doe', specialty: 'Cardiology', phone: '123-456-7890' }
-  });
-  const doctor2 = await prisma.doctor.create({
-    data: { name: 'Dr. Jane Smith', specialty: 'Neurology', phone: '098-765-4321' }
-  });
-  const doctor3 = await prisma.doctor.create({
-    data: { name: 'Dr. Alan Turing', specialty: 'General Practice', phone: '555-123-4567' }
+  const doctor2User = await prisma.user.upsert({
+    where: { username: 'dr.jane.smith' },
+    update: {},
+    create: {
+      username: 'dr.jane.smith',
+      email: 'jane.smith@hospital.vn',
+      password: tempPassword,
+      role: 'DOCTOR',
+      status: 'PENDING',
+      firstLogin: true,
+      registrationStep: 1,
+    },
   });
 
-  // 2. Diagnoses
-  await prisma.diagnosis.createMany({
-    data: [
-      { patientName: 'Alice Nguyen', disease: 'Hypertension', treatment: 'Amlodipine 5mg daily', doctorId: doctor1.id, status: 'COMPLETED' },
-      { patientName: 'Bob Tran', disease: 'Migraine', treatment: 'Rest and Sumatriptan', doctorId: doctor2.id, status: 'PENDING' },
-      { patientName: 'Charlie Le', disease: 'Common Cold', treatment: 'Vitamin C, Paracetamol', doctorId: doctor3.id, status: 'COMPLETED' },
-      { patientName: 'David Pham', disease: 'Arrhythmia', treatment: 'Amiodarone', doctorId: doctor1.id, status: 'PENDING' },
-      { patientName: 'Eve Vu', disease: 'Epilepsy', treatment: 'Levetiracetam', doctorId: doctor2.id, status: 'IN_PROGRESS' },
-    ]
+  const doctor3User = await prisma.user.upsert({
+    where: { username: 'dr.alan.turing' },
+    update: {},
+    create: {
+      username: 'dr.alan.turing',
+      email: 'alan.turing@hospital.vn',
+      password: tempPassword,
+      role: 'DOCTOR',
+      status: 'PENDING',
+      firstLogin: true,
+      registrationStep: 1,
+    },
   });
 
-  // 3. Blockchain Transactions
-  await prisma.blockchainTransaction.createMany({
-    data: [
-      { txHash: '0x123abc456def7890123abc456def7890123abc456def7890123abc456def7890', action: 'Update Patient Record', status: 'CONFIRMED' },
-      { txHash: '0xabc123def456abc123def456abc123def456abc123def456abc123def456abc1', action: 'Verify ZKP Identity', status: 'CONFIRMED' },
-      { txHash: '0xdef456abc123def456abc123def456abc123def456abc123def456abc123def4', action: 'New Diagnosis Entry', status: 'PENDING' },
-      { txHash: '0x987fed654cba987fed654cba987fed654cba987fed654cba987fed654cba987f', action: 'Revoke Access', status: 'CONFIRMED' },
-    ]
+  // Create DoctorProfiles
+  const doc1Profile = await prisma.doctorProfile.upsert({
+    where: { userId: doctor1User.id },
+    update: {},
+    create: {
+      userId: doctor1User.id,
+      doctorName: 'Dr. John Doe',
+      licenseId: 'LIC-CARD-001',
+      dateOfBirth: new Date('1980-05-15'),
+      identityNumber: 'ID-001-VN',
+      specialties: 'Cardiology',
+      degree: 'MD, PhD',
+      facultyOfWork: 'Heart Center',
+      position: 'Senior Cardiologist',
+      workingStartDate: new Date('2010-09-01'),
+    },
   });
 
-  // 4. AI Models
-  await prisma.aiModel.createMany({
-    data: [
-      { name: 'X-Ray Pneumonia Detector', version: 'v2.1.4', accuracy: 96.5, status: 'ACTIVE' },
-      { name: 'ECG Arrhythmia Classifier', version: 'v1.0.8', accuracy: 94.2, status: 'ACTIVE' },
-      { name: 'MRI Brain Tumor SegNet', version: 'v3.0.0', accuracy: 98.1, status: 'MAINTENANCE' },
-    ]
+  const doc2Profile = await prisma.doctorProfile.upsert({
+    where: { userId: doctor2User.id },
+    update: {},
+    create: {
+      userId: doctor2User.id,
+      doctorName: 'Dr. Jane Smith',
+      licenseId: 'LIC-NEUR-002',
+      dateOfBirth: new Date('1985-08-22'),
+      identityNumber: 'ID-002-VN',
+      specialties: 'Neurology',
+      degree: 'MD',
+      facultyOfWork: 'Neuroscience Department',
+      position: 'Neurologist',
+      workingStartDate: new Date('2015-03-01'),
+    },
   });
 
-  console.log('🌱 Seeding finished.');
+  const doc3Profile = await prisma.doctorProfile.upsert({
+    where: { userId: doctor3User.id },
+    update: {},
+    create: {
+      userId: doctor3User.id,
+      doctorName: 'Dr. Alan Turing',
+      licenseId: 'LIC-GEN-003',
+      dateOfBirth: new Date('1990-06-23'),
+      identityNumber: 'ID-003-VN',
+      specialties: 'General Practice',
+      degree: 'MD',
+      facultyOfWork: 'General Medicine',
+      position: 'General Practitioner',
+      workingStartDate: new Date('2018-07-01'),
+    },
+  });
+
+  console.log(`  ✅ Created 3 Doctor accounts (temp password: doctor123)`);
+
+  // ============================================================
+  // Seed AI Models
+  // ============================================================
+  console.log('🌱 Seeding AI Models...');
+
+  await prisma.aiModelInfo.upsert({
+    where: { id: 'ai-xray-pneumonia' },
+    update: {},
+    create: {
+      id: 'ai-xray-pneumonia',
+      modelName: 'X-Ray Pneumonia Detector',
+      version: 'v2.1.4',
+    },
+  });
+
+  await prisma.aiModelInfo.upsert({
+    where: { id: 'ai-ecg-arrhythmia' },
+    update: {},
+    create: {
+      id: 'ai-ecg-arrhythmia',
+      modelName: 'ECG Arrhythmia Classifier',
+      version: 'v1.0.8',
+    },
+  });
+
+  await prisma.aiModelInfo.upsert({
+    where: { id: 'ai-mri-brain' },
+    update: {},
+    create: {
+      id: 'ai-mri-brain',
+      modelName: 'MRI Brain Tumor SegNet',
+      version: 'v3.0.0',
+    },
+  });
+
+  console.log('  ✅ Created 3 AI Models');
+
+  // ============================================================
+  // Seed sample AiDiagnosis records
+  // ============================================================
+  console.log('🌱 Seeding sample Diagnoses...');
+
+  await prisma.aiDiagnosis.create({
+    data: {
+      doctorId: doc1Profile.id,
+      aiModelId: 'ai-xray-pneumonia',
+      inputImageHash: crypto.randomBytes(32).toString('hex'),
+      aiDiagnoseConfidentResults: JSON.stringify({ pneumonia: 0.92, normal: 0.08 }),
+      aiDiagnoseSegmentImageHash: crypto.randomBytes(32).toString('hex'),
+      diagnoseStatus: 'COMPLETED',
+    },
+  });
+
+  await prisma.aiDiagnosis.create({
+    data: {
+      doctorId: doc2Profile.id,
+      aiModelId: 'ai-ecg-arrhythmia',
+      inputImageHash: crypto.randomBytes(32).toString('hex'),
+      aiDiagnoseConfidentResults: JSON.stringify({ arrhythmia: 0.85, normal: 0.15 }),
+      aiDiagnoseSegmentImageHash: crypto.randomBytes(32).toString('hex'),
+      diagnoseStatus: 'PENDING',
+    },
+  });
+
+  console.log('  ✅ Created 2 sample Diagnoses');
+
+  console.log('\n🌱 Seeding finished successfully!');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📋 Summary:');
+  console.log('   - Admins: None (create via Super Admin API)');
+  console.log('   - Doctors: 3 (password: doctor123)');
+  console.log('   - AI Models: 3');
+  console.log('   - Diagnoses: 2');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 
 main()

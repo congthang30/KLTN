@@ -23,6 +23,9 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
+  // ============================================================
+  // DOCTOR: Traditional login with username/password
+  // ============================================================
   const login = async (username, password) => {
     setLoading(true);
     try {
@@ -35,6 +38,50 @@ export function AuthProvider({ children }) {
       return { success: true, firstLogin, user: userData };
     } catch (err) {
       return { success: false, error: err.response?.data?.message || 'Login failed' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================================
+  // ADMIN: Wallet login (no password)
+  // ============================================================
+  const loginWithWallet = async (walletAddress, signature, message) => {
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/auth/wallet-login`, {
+        walletAddress,
+        signature,
+        message,
+      });
+      const { access_token, user: userData } = res.data;
+      setToken(access_token);
+      setUser({ ...userData, firstLogin: false });
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify({ ...userData, firstLogin: false }));
+      return { success: true, user: userData };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Wallet login failed' };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============================================================
+  // ADMIN: First-time login with invite token (no password)
+  // ============================================================
+  const loginWithInvite = async (inviteToken) => {
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/auth/invite-login`, { inviteToken });
+      const { access_token, user: userData } = res.data;
+      setToken(access_token);
+      setUser({ ...userData, firstLogin: true });
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify({ ...userData, firstLogin: true }));
+      return { success: true, user: userData };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.message || 'Invalid invite token' };
     } finally {
       setLoading(false);
     }
@@ -57,7 +104,11 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, loading, login, logout, updateToken, api }}>
+    <AuthContext.Provider value={{
+      token, user, loading,
+      login, loginWithWallet, loginWithInvite,
+      logout, updateToken, api
+    }}>
       {children}
     </AuthContext.Provider>
   );

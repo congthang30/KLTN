@@ -14,7 +14,21 @@ export default function RegisterPage() {
   const { address, registerIdentity, connectMock, disconnect } = useWallet();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState(user?.registrationStep || 1); // 1:password, 2:face, 3:wallet, 4:zkp, 5:done
+  const isAdmin = user?.role === 'ADMIN';
+  const isDoctor = user?.role === 'DOCTOR';
+
+  // Admin: 3 steps (Face → Wallet → ZKP)
+  // Doctor: 4 steps (Password → Face → Wallet → ZKP)
+  const getInitialStep = () => {
+    const regStep = user?.registrationStep || 1;
+    if (isAdmin) {
+      // Admin skips password step. Map: regStep 1→1(face), 2→2(wallet), 3→3(zkp), 4→4(done)
+      return regStep;
+    }
+    return regStep; // Doctor: 1=password, 2=face, 3=done
+  };
+
+  const [step, setStep] = useState(getInitialStep());
   const [passwords, setPasswords] = useState({ old: '', new: '', confirm: '' });
   const [faceEmbedding, setFaceEmbedding] = useState(null);
   const [zkpSecret, setZkpSecret] = useState('');
@@ -22,14 +36,28 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const steps = [
-    { num: 1, label: 'Change Password', icon: '🔑' },
-    { num: 2, label: 'Face Scan', icon: '📷' },
-    { num: 3, label: 'Connect Wallet', icon: '🦊' },
-    { num: 4, label: 'ZKP Identity', icon: '🛡️' },
-    { num: 5, label: 'Complete', icon: '✅' },
+  // ============================================================
+  // Step definitions differ by role
+  // ============================================================
+  const adminSteps = [
+    { num: 1, label: 'Face Scan', icon: '📷' },
+    { num: 2, label: 'Connect Wallet', icon: '🦊' },
+    { num: 3, label: 'ZKP Identity', icon: '🛡️' },
+    { num: 4, label: 'Complete', icon: '✅' },
   ];
 
+  const doctorSteps = [
+    { num: 1, label: 'Change Password', icon: '🔑' },
+    { num: 2, label: 'Face Scan', icon: '📷' },
+    { num: 3, label: 'Complete', icon: '✅' },
+  ];
+
+  const steps = isAdmin ? adminSteps : doctorSteps;
+  const doneStep = isAdmin ? 4 : 3;
+
+  // ============================================================
+  // DOCTOR ONLY: Change Password (Step 1)
+  // ============================================================
   const handleChangePassword = async (e) => {
     e.preventDefault();
     if (passwords.new !== passwords.confirm) {
@@ -49,14 +77,20 @@ export default function RegisterPage() {
     }
   };
 
+  // ============================================================
+  // SHARED: Face Scan
+  // Admin: Step 1 | Doctor: Step 2
+  // ============================================================
+  const faceStep = isAdmin ? 1 : 2;
   const handleFaceCapture = async (embedding) => {
     setLoading(true);
     setError('');
     try {
       await faceApiService.registerFace(embedding);
       setFaceEmbedding(embedding);
-      updateToken(token, { registrationStep: 3 });
-      setStep(3);
+      const nextStep = isAdmin ? 2 : 3; // Admin goes to Wallet (2), Doctor goes to Complete (3)
+      updateToken(token, { registrationStep: nextStep });
+      setStep(nextStep);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to register face');
     } finally {
@@ -64,6 +98,11 @@ export default function RegisterPage() {
     }
   };
 
+  // ============================================================
+  // ADMIN ONLY: Wallet Connect
+  // Admin: Step 2
+  // ============================================================
+  const walletStep = 2;
   const handleWalletConnected = async (addr, isMockSelection = false) => {
     setLoading(true);
     setError('');
@@ -71,14 +110,14 @@ export default function RegisterPage() {
       if (isMockSelection) {
         connectMock(addr);
       }
-      // Update wallet address in backend via ZKP module
       try {
         await api.post('/zkp/update-wallet', { newAddress: addr });
       } catch (walletErr) {
         console.warn('Failed to update wallet in backend, continuing:', walletErr.message);
       }
-      updateToken(token, { registrationStep: 4 });
-      setStep(4);
+      const nextStep = 3; // Admin goes to ZKP step
+      updateToken(token, { registrationStep: nextStep });
+      setStep(nextStep);
     } catch (err) {
       setError('Failed to save wallet address');
     } finally {
@@ -86,11 +125,15 @@ export default function RegisterPage() {
     }
   };
 
+  // ============================================================
+  // ADMIN ONLY: ZKP Register
+  // Admin: Step 3
+  // ============================================================
+  const zkpStep = 3;
   const handleZkpRegister = async () => {
     setLoading(true);
     setError('');
     try {
-      // Step 1: Generate ZKP identity (secret + commitment) from backend
       const res = await zkpService.registerIdentity();
       if (!res || !res.data) {
         throw new Error('Backend returned empty response for ZKP registration');
@@ -100,24 +143,19 @@ export default function RegisterPage() {
       }
       const { secret, commitment } = res.data;
       if (!commitment) {
-        throw new Error('No commitment returned from backend. Please ensure face registration (Step 2) was completed.');
+        throw new Error('No commitment returned from backend. Ensure face registration was completed.');
       }
       setZkpSecret(secret);
 
-      // Step 2: Bắt buộc ghi nhận danh tính lên Blockchain (Không được bỏ qua!)
       if (!address) {
-        throw new Error('Please connect your MetaMask wallet in Step 3 first');
+        throw new Error('Please connect your wallet in the previous step first');
       }
-      
-      await registerIdentity(commitment);
 
-      // Step 3: Gọi API hoàn tất đăng ký phía Backend (Chỉ khi Blockchain thành công!)
+      await registerIdentity(commitment);
       await zkpService.completeRegistration();
 
-      // Step 4: Cập nhật trạng thái trong AuthContext & LocalStorage
-      updateToken(token, { firstLogin: false, registrationStep: 5 });
-
-      setStep(5);
+      updateToken(token, { firstLogin: false, registrationStep: 4 });
+      setStep(4);
     } catch (err) {
       console.error('[ZKP Register Error]', err);
       setError(err.response?.data?.message || err.message || 'Failed to register ZKP identity');
@@ -126,21 +164,22 @@ export default function RegisterPage() {
     }
   };
 
+  // ============================================================
+  // Rollback
+  // ============================================================
   const handleRollback = async () => {
     setLoading(true);
     setError('');
     try {
       const res = await api.post('/users/rollback', { currentStep: step });
       const nextStep = res.data.registrationStep;
-      
-      // Update our token context
       updateToken(token, { registrationStep: nextStep });
-      
-      if (step === 3) {
+
+      if (step === walletStep) {
         setCustomWallet('');
         disconnect();
       }
-      
+
       setStep(nextStep);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to rollback step');
@@ -152,10 +191,13 @@ export default function RegisterPage() {
   return (
     <div className="container fade-in" style={{ maxWidth: 700, padding: '40px 24px' }}>
       <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 8, textAlign: 'center' }}>
-        🛡️ Identity Registration
+        🛡️ {isAdmin ? 'Admin Identity Registration' : 'Identity Registration'}
       </h1>
       <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 32 }}>
-        Complete all steps to activate your multi-layer security
+        {isAdmin
+          ? 'Complete all steps to activate wallet-based + ZKP security (no password needed)'
+          : 'Complete all steps to activate your multi-layer security'
+        }
       </p>
 
       {/* Step Indicator */}
@@ -180,8 +222,8 @@ export default function RegisterPage() {
 
       {error && <div className="alert alert-error">{error}</div>}
 
-      {/* Step 1: Change Password */}
-      {step === 1 && (
+      {/* ======== DOCTOR ONLY: Step 1 Change Password ======== */}
+      {isDoctor && step === 1 && (
         <div className="card" style={{ padding: 32 }}>
           <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>🔑 Change Your Temporary Password</h2>
           <form onSubmit={handleChangePassword}>
@@ -207,8 +249,8 @@ export default function RegisterPage() {
         </div>
       )}
 
-      {/* Step 2: Face Scan with Liveness Detection */}
-      {step === 2 && (
+      {/* ======== SHARED: Face Scan ======== */}
+      {step === faceStep && (
         <div className="card" style={{ padding: 32 }}>
           <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>📷 Xác thực khuôn mặt người thật</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.9rem' }}>
@@ -216,24 +258,27 @@ export default function RegisterPage() {
             Face embedding sẽ được dùng cho xác thực sinh trắc học và ZKP identity.
           </p>
           <FaceCapture onCapture={handleFaceCapture} onError={msg => setError(msg)} requireLiveness={true} />
-          <button 
-            className="btn btn-secondary btn-full" 
-            type="button" 
-            onClick={handleRollback} 
-            disabled={loading}
-            style={{ marginTop: 16, border: '1px dashed var(--border)' }}
-          >
-            ← Quay lại bước 1 (Đổi mật khẩu)
-          </button>
+          {/* Admin step 1 has no rollback, Doctor step 2 rolls back to step 1 */}
+          {isDoctor && (
+            <button
+              className="btn btn-secondary btn-full"
+              type="button"
+              onClick={handleRollback}
+              disabled={loading}
+              style={{ marginTop: 16, border: '1px dashed var(--border)' }}
+            >
+              ← Quay lại bước trước (Đổi mật khẩu)
+            </button>
+          )}
         </div>
       )}
 
-      {/* Step 3: Wallet */}
-      {step === 3 && (
+      {/* ======== ADMIN ONLY: Wallet Connect ======== */}
+      {isAdmin && step === walletStep && (
         <div className="card" style={{ padding: 32 }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>🦊 Connect MetaMask Wallet</h2>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>🦊 Connect Wallet</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.9rem' }}>
-            Your wallet address will be linked to your ZKP identity on the blockchain.
+            Your wallet will become your primary authentication method. Choose any wallet address you prefer.
           </p>
           <WalletConnect onConnect={handleWalletConnected} />
 
@@ -244,7 +289,7 @@ export default function RegisterPage() {
             border: '1px solid rgba(99, 102, 241, 0.1)',
           }}>
             <h4 style={{ fontSize: '0.9rem', color: 'var(--accent)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              🛠️ Admin & Developer Testing Tools
+              🛠️ Developer Testing Tools
             </h4>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>
               Skip MetaMask connection or select a pre-funded Hardhat account directly:
@@ -252,8 +297,8 @@ export default function RegisterPage() {
 
             <div className="form-group" style={{ marginBottom: 12 }}>
               <label className="form-label" style={{ fontSize: '0.75rem' }}>Select Pre-funded Account</label>
-              <select 
-                className="form-input" 
+              <select
+                className="form-input"
                 style={{ fontSize: '0.85rem' }}
                 value={customWallet}
                 onChange={(e) => setCustomWallet(e.target.value)}
@@ -267,18 +312,18 @@ export default function RegisterPage() {
 
             <div className="form-group" style={{ marginBottom: 16 }}>
               <label className="form-label" style={{ fontSize: '0.75rem' }}>Or Enter Custom Wallet Address</label>
-              <input 
-                className="form-input" 
-                type="text" 
-                placeholder="0x..." 
+              <input
+                className="form-input"
+                type="text"
+                placeholder="0x..."
                 value={customWallet}
                 onChange={(e) => setCustomWallet(e.target.value)}
                 style={{ fontSize: '0.85rem' }}
               />
             </div>
 
-            <button 
-              className="btn btn-secondary btn-full" 
+            <button
+              className="btn btn-secondary btn-full"
               type="button"
               disabled={!customWallet || loading}
               onClick={() => handleWalletConnected(customWallet, true)}
@@ -288,27 +333,28 @@ export default function RegisterPage() {
             </button>
           </div>
 
-          <button 
-            className="btn btn-secondary btn-full" 
-            type="button" 
-            onClick={handleRollback} 
+          <button
+            className="btn btn-secondary btn-full"
+            type="button"
+            onClick={handleRollback}
             disabled={loading}
             style={{ marginTop: 16, border: '1px dashed var(--border)' }}
           >
-            ← Quay lại bước 2 (Quét khuôn mặt)
+            ← Quay lại bước trước (Quét khuôn mặt)
           </button>
         </div>
       )}
 
-      {/* Step 4: ZKP */}
-      {step === 4 && (
+      {/* ======== ADMIN ONLY: ZKP Identity ======== */}
+      {isAdmin && step === zkpStep && (
         <div className="card" style={{ padding: 32 }}>
           <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>🛡️ Generate ZKP Identity</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.9rem' }}>
             A cryptographic commitment will be created from your secret and face data, then stored on the blockchain.
+            This is the final step of your passwordless identity setup.
           </p>
 
-          {/* Cảnh báo ví đang ký */}
+          {/* Wallet info */}
           <div style={{ marginBottom: 20, padding: '16px', background: 'rgba(99, 102, 241, 0.05)', borderRadius: 8, border: '1px solid rgba(99, 102, 241, 0.1)' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 4 }}>
               Ví xác nhận giao dịch (Transaction Signer):
@@ -318,37 +364,49 @@ export default function RegisterPage() {
             </div>
             <div style={{ fontSize: '0.75rem', marginTop: 12, color: 'var(--warning)', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
               <span>⚠️</span>
-              <span>Nếu MetaMask bật lên yêu cầu ký với một ví khác, hãy <b>từ chối (Reject)</b> và chọn đúng ví này trong bảng điều khiển của Extension MetaMask trước khi thử lại! Hoặc ấn nút Quay lại Bước 3 bên dưới để chọn lại ví.</span>
+              <span>Nếu MetaMask bật lên yêu cầu ký với một ví khác, hãy <b>từ chối (Reject)</b> và chọn đúng ví này trong bảng điều khiển của Extension MetaMask trước khi thử lại!</span>
             </div>
           </div>
 
           <button className="btn btn-primary btn-lg btn-full" onClick={handleZkpRegister} disabled={loading || !address}>
             {loading ? 'Generating...' : '🔐 Generate ZKP Identity'}
           </button>
-          <button 
-            className="btn btn-secondary btn-full" 
-            type="button" 
-            onClick={handleRollback} 
+          <button
+            className="btn btn-secondary btn-full"
+            type="button"
+            onClick={handleRollback}
             disabled={loading}
             style={{ marginTop: 16, border: '1px dashed var(--border)' }}
           >
-            ← Quay lại bước 3 (Kết nối ví)
+            ← Quay lại bước trước (Kết nối ví)
           </button>
         </div>
       )}
 
-      {/* Step 5: Done */}
-      {step === 5 && (
+      {/* ======== SHARED: Done ======== */}
+      {step === doneStep && (
         <div className="card" style={{ padding: 32, textAlign: 'center' }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
-          <h2 style={{ fontSize: '1.4rem', marginBottom: 16 }}>Đăng ký hoàn tất!</h2>
+          <h2 style={{ fontSize: '1.4rem', marginBottom: 16 }}>
+            {isAdmin ? 'Thiết lập tài khoản Admin hoàn tất!' : 'Đăng ký hoàn tất!'}
+          </h2>
 
           <div className="alert alert-info" style={{ textAlign: 'left' }}>
-            <strong>✅ Danh tính ZKP đã được đăng ký trên blockchain.</strong>
-            <p style={{ fontSize: '0.85rem', marginTop: 8, color: 'var(--text-secondary)' }}>
-              Mã bí mật đã được cung cấp khi bạn đăng nhập lần đầu. 
-              Hãy đảm bảo bạn đã lưu mã đó để khôi phục tài khoản khi cần.
-            </p>
+            {isAdmin ? (
+              <>
+                <strong>✅ Danh tính ZKP đã được đăng ký trên blockchain.</strong>
+                <p style={{ fontSize: '0.85rem', marginTop: 8, color: 'var(--text-secondary)' }}>
+                  Từ giờ bạn đăng nhập bằng <b>Connect Wallet</b> + <b>Face Scan</b>. 
+                  Không cần username/password nữa!
+                </p>
+                <p style={{ fontSize: '0.85rem', marginTop: 8, color: 'var(--text-secondary)' }}>
+                  Mã bí mật đã được cung cấp khi bạn đăng nhập lần đầu. 
+                  Hãy đảm bảo bạn đã lưu mã đó để khôi phục tài khoản khi cần.
+                </p>
+              </>
+            ) : (
+              <strong>✅ Bạn đã hoàn tất cập nhật mật khẩu và khuôn mặt. Từ giờ hãy sử dụng mật khẩu mới này để đăng nhập.</strong>
+            )}
           </div>
 
           <button className="btn btn-primary btn-lg" onClick={() => navigate('/dashboard')} style={{ marginTop: 16 }}>

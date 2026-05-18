@@ -1,158 +1,231 @@
-# 🛡️ ZKP Identity Verification System
+# 🛡️ ZKP Identity Verification System — Hospital Management
 
 Hệ thống xác thực danh tính đa lớp tích hợp **Zero-Knowledge Proofs (Groth16)**, **Nhận diện khuôn mặt với Liveness Detection (MediaPipe & face-api.js)** và **Blockchain (Hardhat + Solidity)**.
 
-Dự án này đã được nâng cấp lên cơ chế xác thực khuôn mặt tự động kiểu **Agribank E-Mobile Banking** (Liveness check quay mặt trái/phải/lên/xuống để xác định người thật) và cơ chế hiển thị mã bí mật ZKP bảo mật cao ngay trong lần đăng nhập đầu tiên.
+Admin đăng nhập hoàn toàn **không cần username/password** — chỉ dùng **Ví Web3 + Khuôn mặt + ZKP**. Doctor giữ nguyên cơ chế username/password truyền thống.
 
 ---
 
-## 🐳 1. HƯỚNG DẪN CHẠY FULL BẰNG DOCKER COMPOSE (CHI TIẾT NHẤT)
-
-Chạy hệ thống qua Docker Compose là phương pháp tối ưu và đơn giản nhất vì toàn bộ Database (MSSQL), Blockchain Node (Hardhat + Solidity auto deploy), API Backend (NestJS + Prisma auto migration/seed) và React Frontend đều được đóng gói và cấu hình sẵn để tự động liên kết với nhau.
-
-### 📋 Bước 1.1: Chuẩn bị môi trường
-1. Tải và cài đặt **Docker Desktop** cho hệ điều hành của bạn (Windows/Mac/Linux).
-2. Mở ứng dụng **Docker Desktop** và đảm bảo Docker engine đang ở trạng thái **Running** (màu xanh lá ở góc trái màn hình).
-
-### 🚀 Bước 1.2: Khởi chạy hệ thống bằng 1 lệnh duy nhất
-1. Mở Terminal (PowerShell, Command Prompt hoặc Git Bash) tại thư mục gốc của dự án (`KLTN`).
-2. Chạy lệnh sau để build và khởi động toàn bộ 4 container:
-   ```bash
-   docker-compose up --build
-   ```
-   * *Giải thích:* Lệnh này sẽ build lại code mới nhất (bao gồm cả tính năng Liveness Detection và Secret Code Modal mới hoàn thành) và khởi chạy tất cả các dịch vụ ở chế độ xem log thời gian thực.
-
-### ⏳ Bước 1.3: Xem tiến trình khởi chạy tự động của hệ thống
-Hệ thống sẽ tự động điều phối thứ tự chạy cực kỳ thông minh:
-1. **Container `zkp-mssql` (Database)** khởi chạy trước trên cổng `1433`.
-2. **Container `zkp-blockchain`** khởi động Hardhat Node và tự động deploy Smart Contract lên mạng blockchain cục bộ (cổng `8545`).
-3. **Container `zkp-backend`** sẽ liên tục kiểm tra cổng của MS SQL Server. Khi cổng mở, backend sẽ **chờ thêm 10 giây** để đảm bảo tài khoản quản trị hệ thống (`sa`) được SQL Server khởi tạo thành công hoàn toàn.
-4. Sau đó backend tự động thực hiện **Prisma Migration (khởi tạo cấu trúc bảng)** và **Prisma Seed (tự động tạo tài khoản admin)**.
-5. Cuối cùng, **Container `zkp-frontend`** khởi chạy giao diện web React trên cổng `5173`.
-
-> Bạn biết hệ thống đã sẵn sàng 100% khi Terminal hiện dòng chữ:
-> `zkp-frontend  |   VITE v5.4.21  ready in XX ms`
+## 📋 Mục lục
+1. [Cách tạo tài khoản Admin](#-1-cách-tạo-tài-khoản-admin-quan-trọng-nhất)
+2. [Chạy bằng Docker Compose](#-2-hướng-dẫn-chạy-full-bằng-docker-compose)
+3. [Chạy thủ công từng service](#-3-hướng-dẫn-chạy-bằng-tay-từng-service)
+4. [Cấu hình MetaMask](#-4-cấu-hình-metamask-với-mạng-blockchain-local)
+5. [Thông tin tài khoản Doctor](#-5-thông-tin-đăng-nhập-doctor)
+6. [Kiến trúc bảo mật](#-6-kiến-trúc-bảo-mật-3-lớp-anti-hacker)
 
 ---
 
-## 🔎 2. CÁC LỆNH DOCKER COMPOSE HỮU ÍCH KHI PHÁT TRIỂN
+## 🔐 1. CÁCH TẠO TÀI KHOẢN ADMIN (QUAN TRỌNG NHẤT)
 
-Trong quá trình chạy và phát triển dự án, bạn có thể sử dụng các lệnh sau để quản lý các container:
+> **Admin KHÔNG có username/password.** Thay vào đó, Admin dùng **Ví Web3 + Face Biometric + ZKP** để đăng nhập.
 
-### 🔇 Chạy ẩn dưới nền (Background Mode):
-Nếu bạn muốn giải phóng Terminal của mình và không hiển thị đống log chạy liên tục:
+### ⚡ Bước 1: Tạo Admin đầu tiên (Bootstrap)
+
+Khi hệ thống mới được deploy, **chưa có Admin nào tồn tại**. Bạn cần gọi API Bootstrap để tạo Admin đầu tiên.
+
+**Sử dụng cURL hoặc Postman:**
+
 ```bash
-docker-compose up -d --build
+curl -X POST http://localhost:3001/api/auth/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "admin",
+    "email": "admin@hospital.vn",
+    "superAdminSecret": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+  }'
 ```
 
-### 📋 Xem Log của một Service cụ thể:
-Nếu bạn muốn theo dõi xem Backend đang làm gì hoặc kiểm tra lỗi Prisma:
+**Hoặc dùng PowerShell:**
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3001/api/auth/bootstrap" `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"username":"admin","email":"admin@hospital.vn","superAdminSecret":"0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"}'
+```
+
+> ⚠️ **`superAdminSecret`** chính là giá trị `SUPER_ADMIN_PRIVATE_KEY` trong file `.env`. Cho môi trường dev, đây là private key của Hardhat Account #0.
+
+**Kết quả trả về:**
+```json
+{
+  "message": "First Admin account created successfully!",
+  "user": { "id": "...", "username": "admin", "email": "admin@hospital.vn", "role": "ADMIN" },
+  "inviteToken": "a1b2c3d4e5f6...64_hex_chars...",
+  "instructions": "Use this invite token on the Login page → Admin tab → \"Invite Code\" to complete registration."
+}
+```
+
+> 🔒 **API này chỉ hoạt động 1 LẦN DUY NHẤT** — khi đã có Admin trong hệ thống, endpoint này sẽ trả về lỗi `403 Forbidden`.
+
+### ⚡ Bước 2: Đăng nhập lần đầu bằng Invite Token
+
+1. Mở trình duyệt → `http://localhost:5173`
+2. Chọn tab **🔐 Admin (Ví Web3)**
+3. Nhấn nút **🎟️ Mã mời (Lần đầu)**
+4. Dán **invite token** từ Bước 1 vào ô nhập
+5. Nhấn **Xác nhận mã mời**
+
+### ⚡ Bước 3: Hoàn tất đăng ký danh tính (3 bước)
+
+Sau khi nhập invite token thành công, hệ thống sẽ:
+
+| Bước | Mô tả |
+|------|-------|
+| **📷 Face Scan** | Camera tự bật → Quay đầu theo 3 hướng (Liveness Detection kiểu Agribank) → Lưu face embedding |
+| **🦊 Connect Wallet** | Kết nối ví MetaMask bất kỳ (hoặc chọn Hardhat account cho dev) |
+| **🛡️ ZKP Identity** | Tạo commitment = Poseidon(secret, faceHash) → Đăng ký on-chain qua Super Admin Relayer |
+
+> 💡 **Mã bí mật MFA** sẽ xuất hiện 1 LẦN DUY NHẤT sau khi nhập invite token. **Copy và lưu giữ cẩn thận** — dùng để khôi phục tài khoản khi mất ví.
+
+### ⚡ Bước 4: Đăng nhập lại sau này (không cần password!)
+
+Từ lần sau, Admin đăng nhập chỉ cần:
+1. Mở web → Tab **Admin** → Nhấn **🦊 Kết nối MetaMask & Đăng nhập**
+2. MetaMask popup → Ký xác nhận (Sign)
+3. Quét khuôn mặt → Vào Dashboard!
+
+### ⚡ Tạo thêm Admin (sau khi đã có Admin đầu tiên)
+
+Admin đầu tiên có thể tạo thêm Admin khác qua Dashboard:
+- Vào **Dashboard → Quản lý Users → Tạo User mới** với role `ADMIN`
+- Hoặc gọi API:
+
 ```bash
-# Xem log của Backend
+curl -X POST http://localhost:3001/api/users/create \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <admin_jwt_token>" \
+  -d '{"username": "admin2", "email": "admin2@hospital.vn", "role": "ADMIN"}'
+```
+
+Hệ thống sẽ tạo invite token mới và gửi qua email (hoặc trả về trong response cho dev).
+
+---
+
+## 🐳 2. HƯỚNG DẪN CHẠY FULL BẰNG DOCKER COMPOSE
+
+### 📋 Bước 2.1: Chuẩn bị
+1. Cài đặt **Docker Desktop** và đảm bảo đang chạy (biểu tượng xanh lá).
+2. Kiểm tra file `.env` ở thư mục gốc đã có `SUPER_ADMIN_PRIVATE_KEY`.
+
+### 🚀 Bước 2.2: Khởi chạy
+```bash
+docker-compose up --build
+```
+
+### ⏳ Bước 2.3: Thứ tự khởi động tự động
+1. **`zkp-postgres`** — PostgreSQL database (cổng `5432`)
+2. **`zkp-blockchain`** — Hardhat Node + auto deploy Smart Contract (cổng `8545`)
+3. **`zkp-backend`** — NestJS API + Prisma migration + seed (cổng `3001`)
+4. **`zkp-frontend`** — React Vite (cổng `5173`)
+
+> Hệ thống sẵn sàng khi Terminal hiện: `zkp-frontend  |   VITE v5.4.21  ready in XX ms`
+
+### 🛑 Các lệnh Docker hữu ích
+
+```bash
+# Chạy nền (background)
+docker-compose up -d --build
+
+# Xem log backend
 docker logs -f zkp-backend
 
-# Xem log của Blockchain Node (xem lịch sử deploy contract/giao dịch gas)
-docker logs -f zkp-blockchain
-```
-
-### 🛑 Dừng và Dọn Dẹp Toàn Bộ Hệ Thống:
-Khi kiểm thử xong hoặc muốn tắt dự án:
-```bash
+# Dừng hệ thống
 docker-compose down
-```
 
-### 🔄 Dọn Dẹp Sạch Sẽ Volume (Reset hoàn toàn Database và Blockchain):
-Nếu database của bạn bị lỗi hoặc bạn muốn reset sạch sẽ mọi tài khoản và trạng thái blockchain về trạng thái xuất xưởng:
-```bash
+# Reset hoàn toàn DB + Blockchain (⚠️ xóa hết data!)
 docker-compose down -v
 ```
-*(Lệnh này sẽ xóa ổ đĩa ảo MSSQL và bộ nhớ Hardhat Node, lần chạy tiếp theo hệ thống sẽ nạp lại từ đầu).*
 
 ---
 
-## 🔑 3. THÔNG TIN ĐĂNG NHẬP ADMIN & LUỒNG ĐĂNG KÝ
+## 🛠️ 3. HƯỚNG DẪN CHẠY BẰNG TAY TỪNG SERVICE
 
-Sau khi Docker khởi động thành công, bạn mở trình duyệt và truy cập: **`http://localhost:5173`**
-
-### 🔐 Tài khoản Admin mặc định:
-* **Username:** `admin` *(hoặc email: `duc19092005d@gmail.com`)*
-* **Password:** `anhduc9A@5`
-
-### 🔄 Luồng đăng ký danh tính đa lớp của Admin (First Login):
-Vì Docker Seed tự động cấu hình tài khoản admin ở trạng thái Đăng nhập lần đầu (`firstLogin: true`), khi bạn đăng nhập thành công bằng mật khẩu trên:
-1. **Đổi mật khẩu**: Hệ thống yêu cầu đổi mật khẩu mới để bảo mật.
-2. **Cảnh Báo Đỏ (Secret Code)**: Hiển thị hộp thoại cảnh báo đỏ khẩn cấp cung cấp mã bí mật ZKP độc bản. **Hãy nhấn "Sao chép vào clipboard" và lưu trữ mã này thật kỹ.**
-3. **Liveness Verification (Kiểu Agribank)**: Camera sẽ tự động bật. Bạn đưa khuôn mặt vào giữa khung oval. Hệ thống sẽ chọn ngẫu nhiên 3 hướng quay đầu. Hãy quay đầu theo mũi tên chỉ dẫn (Trái/Phải/Lên/Xuống) và giữ nguyên tư thế ~2 giây mỗi hướng để thanh tiến trình chạy đầy.
-4. **Liên kết ví MetaMask**: Hệ thống yêu cầu kết nối ví MetaMask của bạn (Xem hướng dẫn import ví Hardhat bên dưới).
-5. **Đăng ký thành công**: Hệ thống tạo Proof ZKP gửi lên Blockchain Smart Contract để lưu trữ và kích hoạt tài khoản Admin ACTIVE hoàn toàn!
-
----
-
-## 🦊 4. CẤU HÌNH METAMASK VỚI MẠNG BLOCKCHAIN LOCAL DOCKER
-
-Mạng blockchain cục bộ của dự án đang chạy bên trong Docker trên cổng `8545`. Để MetaMask có thể tương tác:
-
-### 🌐 Bước 4.1: Thêm Mạng Hardhat Network vào MetaMask
-1. Mở extension **MetaMask** trên trình duyệt của bạn.
-2. Nhấp vào menu chọn Mạng -> Chọn **Add network** (Thêm mạng) -> **Add a network manually** (Thêm mạng thủ công).
-3. Điền các thông tin như sau:
-   * **Network Name:** `Hardhat Localhost`
-   * **New RPC URL:** `http://localhost:8545` *(Hoặc `http://127.0.0.1:8545`)*
-   * **Chain ID:** `31337`
-   * **Currency Symbol:** `ETH`
-4. Nhấn **Save** (Lưu) và chuyển sang mạng vừa tạo.
-
-### 🔑 Bước 4.2: Import Ví Thử Nghiệm có sẵn 10,000 ETH
-Mạng local của Hardhat cung cấp sẵn các tài khoản có sẵn 10,000 ETH để dev kiểm thử. Bạn hãy copy một trong các Private Key dưới đây để import vào MetaMask làm ví Admin/User:
-
-| Tài khoản | Địa chỉ Ví (Public Address) | Khóa Bí Mật (Private Key) |
-| :---: | :--- | :--- |
-| **Account #0 (Khuyên dùng cho Admin)** | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
-| **Account #1 (Khuyên dùng để Khôi phục/User)** | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d` |
-
-**Cách thêm ví vào MetaMask:**
-1. Trên MetaMask, nhấp vào biểu tượng danh sách tài khoản (hình tròn màu sắc ở góc trên bên phải).
-2. Chọn **Add account or hardware wallet** -> Chọn **Import account** (Nhập tài khoản).
-3. Dán chuỗi **Private Key** ở bảng trên vào ô nhập liệu.
-4. Nhấn **Import** (Nhập). Bạn sẽ nhận ngay ví có **10,000 ETH** lập tức!
-
----
-
-## 🛠️ 5. HƯỚNG DẪN CHẠY BẰNG TAY TỪNG SERVICE (NẾU KHÔNG DÙNG DOCKER)
-
-Nếu bạn không muốn chạy bằng Docker mà muốn chạy thủ công từng phần bằng NodeJS trên máy:
-
-### 🖥️ Terminal 1: Mạng Blockchain Node
+### 🖥️ Terminal 1: Blockchain Node
 ```bash
 cd blockchain
 npm install
 npm run node
 ```
 
-### 🖥️ Terminal 2: Biên dịch và Deploy Smart Contract
+### 🖥️ Terminal 2: Deploy Smart Contract
 ```bash
 cd blockchain
 npm run deploy:local
 ```
-*Ghi lại địa chỉ contract `IdentityRegistry` được in ra màn hình.*
+*Ghi lại địa chỉ `IdentityRegistry` được in ra.*
 
-### 🖥️ Terminal 3: API Backend (NestJS)
-1. Cấu hình file `backend/.env` (DATABASE_URL và IDENTITY_REGISTRY_ADDRESS).
-2. Chạy prisma và server:
-   ```bash
-   cd backend
-   npm install
-   npx prisma db push
-   npx prisma db seed
-   npm run start:dev
-   ```
+### 🖥️ Terminal 3: Backend (NestJS)
+```bash
+cd backend
+npm install
+npx prisma db push
+npx prisma db seed
+npm run start:dev
+```
 
 ### 🖥️ Terminal 4: Frontend (React Vite)
-1. Cấu hình file `frontend/.env` (VITE_IDENTITY_REGISTRY_ADDRESS).
-2. Chạy server phát triển:
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-3. Truy cập: `http://localhost:5173`.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Truy cập: `http://localhost:5173`
+
+---
+
+## 🦊 4. CẤU HÌNH METAMASK VỚI MẠNG BLOCKCHAIN LOCAL
+
+### 🌐 Thêm Mạng Hardhat Network
+1. MetaMask → **Add network** → **Add a network manually**
+2. Điền:
+   - **Network Name:** `Hardhat Localhost`
+   - **New RPC URL:** `http://localhost:8545`
+   - **Chain ID:** `31337`
+   - **Currency Symbol:** `ETH`
+
+### 🔑 Import Ví thử nghiệm (10,000 ETH)
+
+| Tài khoản | Địa chỉ | Private Key |
+|-----------|---------|-------------|
+| **Account #0** (Super Admin) | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
+| **Account #1** (Admin/User) | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d` |
+| **Account #2** (Doctor) | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` | `0x5de4111afa73f9876e5228e37186140b6e9b40ba9c195609ee7def409a5ae9cd` |
+
+**Import:** MetaMask → Biểu tượng tài khoản → **Import account** → Dán Private Key → **Import**
+
+---
+
+## 👨‍⚕️ 5. THÔNG TIN ĐĂNG NHẬP DOCTOR
+
+Doctor sử dụng **username + password** truyền thống. Tài khoản mẫu (từ seed):
+
+| Username | Password tạm | Email |
+|----------|-------------|-------|
+| `dr.john.doe` | `doctor123` | john.doe@hospital.vn |
+| `dr.jane.smith` | `doctor123` | jane.smith@hospital.vn |
+| `dr.alan.turing` | `doctor123` | alan.turing@hospital.vn |
+
+Khi đăng nhập lần đầu, Doctor phải đổi mật khẩu → Quét khuôn mặt → Kết nối ví → Đăng ký ZKP.
+
+---
+
+## 🛡️ 6. KIẾN TRÚC BẢO MẬT 3 LỚP (ANTI-HACKER)
+
+```
+Hacker chiếm được Database?
+    ↓
+Lớp 1: Connect Wallet → Backend gọi isAuthorized() ON-CHAIN
+        → Ví chưa đăng ký trên blockchain ❌ BLOCKED!
+        → Chỉ Super Admin Relayer mới đăng ký được ví on-chain
+    ↓
+Lớp 2: Face Biometric → Liveness Detection (quay đầu)
+        → Không thể fake khuôn mặt ❌ BLOCKED!
+    ↓
+Lớp 3: ZKP Proof → Cần biết secret + faceHash
+        → Secret chỉ hiện 1 lần, mã hóa AES trong DB ❌ BLOCKED!
+```
+
+**Kết luận:** Dù hacker chiếm quyền Database, KHÔNG THỂ đăng nhập vì blockchain bất biến, khuôn mặt không thể fake, và ZKP secret không thể đoán.

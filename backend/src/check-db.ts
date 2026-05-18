@@ -3,7 +3,10 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const user = await prisma.user.findFirst({ where: { username: 'admin' } });
+  const user = await prisma.user.findFirst({
+    where: { username: 'admin' },
+    include: { adminProfile: true },
+  });
   if (!user) {
     console.log('❌ Admin user not found in Database!');
     return;
@@ -14,10 +17,14 @@ async function main() {
     username: user.username,
     email: user.email,
     firstLogin: user.firstLogin,
-    faceEmbeddingLength: user.faceEmbedding ? JSON.parse(user.faceEmbedding).length : 0,
-    faceHash: user.faceHash,
-    walletAddress: user.walletAddress,
-    zkpCommitment: user.zkpCommitment,
+    registrationStep: user.registrationStep,
+    // Admin fields are in AdminProfile
+    walletAddress: user.adminProfile?.walletAddress,
+    faceEmbeddingLength: user.adminProfile?.faceEmbedding
+      ? JSON.parse(user.adminProfile.faceEmbedding).length
+      : 0,
+    faceHash: user.adminProfile?.faceHash,
+    zkpCommitment: user.adminProfile?.zkpCommitment,
   });
 }
 
