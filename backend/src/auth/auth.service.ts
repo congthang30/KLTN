@@ -68,8 +68,10 @@ export class AuthService {
    * Step 1: Generate a challenge nonce for wallet authentication
    */
   async walletChallenge(walletAddress: string) {
-    const adminProfile = await this.prisma.adminProfile.findUnique({
-      where: { walletAddress },
+    const adminProfile = await this.prisma.adminProfile.findFirst({
+      where: { 
+        walletAddress: { equals: walletAddress, mode: 'insensitive' }
+      },
       include: { user: true },
     });
 
@@ -106,8 +108,10 @@ export class AuthService {
    * Step 2: Verify wallet signature and issue partial JWT
    */
   async walletLogin(walletAddress: string, signature: string, message: string) {
-    const adminProfile = await this.prisma.adminProfile.findUnique({
-      where: { walletAddress },
+    const adminProfile = await this.prisma.adminProfile.findFirst({
+      where: { 
+        walletAddress: { equals: walletAddress, mode: 'insensitive' }
+      },
       include: { user: true },
     });
 
@@ -134,7 +138,7 @@ export class AuthService {
 
     // Clear nonce after use (single-use)
     await this.prisma.adminProfile.update({
-      where: { walletAddress },
+      where: { id: adminProfile.id }, // Use ID instead of walletAddress since findUnique requires unique field
       data: { nonce: null },
     });
 

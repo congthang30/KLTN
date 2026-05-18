@@ -150,22 +150,28 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
   // ── LIVENESS MODE ──
   if (requireLiveness) {
     return (
-      <div style={{ width: '100%' }}>
-        {extractingEmbedding ? (
+      <div style={{ width: '100%', position: 'relative' }}>
+        <LivenessCheck
+          onLivenessPass={handleLivenessPass}
+          onError={onError}
+        />
+        {extractingEmbedding && (
           <div style={{
-            textAlign: 'center',
-            padding: 40,
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+            borderRadius: 20,
           }}>
-            <div className="spinner" style={{ width: 48, height: 48, borderWidth: 4, margin: '0 auto' }} />
-            <p style={{ marginTop: 16, color: 'var(--accent)', fontWeight: 600 }}>
-              Đang trích xuất face embedding...
+            <div className="spinner" style={{ width: 48, height: 48, borderWidth: 4 }} />
+            <p style={{ marginTop: 16, color: '#a7f3d0', fontWeight: 700, fontSize: '1.1rem' }}>
+              Đang trích xuất mã hóa khuôn mặt...
             </p>
           </div>
-        ) : (
-          <LivenessCheck
-            onLivenessPass={handleLivenessPass}
-            onError={onError}
-          />
         )}
       </div>
     );
