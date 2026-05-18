@@ -105,56 +105,64 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
   // ── Real-time detection loop ────────────────────────────────────
   const startDetectionLoop = useCallback(() => {
     let lastTimestamp = 0;
+    let frameCount = 0;
 
     const loop = (timestamp) => {
+      // Always schedule next frame FIRST so loop never dies
+      animFrameRef.current = requestAnimationFrame(loop);
+
       if (!videoRef.current || videoRef.current.readyState < 2) {
-        animFrameRef.current = requestAnimationFrame(loop);
         return;
       }
 
-      // Throttle to ~30fps
-      if (timestamp - lastTimestamp < 33) {
-        animFrameRef.current = requestAnimationFrame(loop);
+      // Throttle to ~20fps (every 50ms) to reduce React re-render pressure
+      if (timestamp - lastTimestamp < 50) {
         return;
       }
       lastTimestamp = timestamp;
+      frameCount++;
 
-      const landmarks = detectLandmarks(videoRef.current, timestamp);
+      try {
+        // MediaPipe requires integer timestamps in ms
+        const tsMs = Math.floor(timestamp);
+        const landmarks = detectLandmarks(videoRef.current, tsMs);
 
-      if (!landmarks) {
-        setFaceDetected(false);
-        setDetectedDir('center');
-        setProgress(0);
-        holdStartRef.current = null;
-        setDistanceStatus('OK');
-        animFrameRef.current = requestAnimationFrame(loop);
-        return;
+        if (!landmarks) {
+          setFaceDetected(false);
+          setDetectedDir('center');
+          setProgress(0);
+          holdStartRef.current = null;
+          setDistanceStatus('OK');
+          setDebugInfo(prev => ({ ...prev, dir: 'no-face' }));
+          return;
+        }
+
+        setFaceDetected(true);
+
+        // Check face distance
+        const dist = checkFaceDistance(landmarks);
+        setDistanceStatus(dist);
+
+        if (dist !== 'OK') {
+          setProgress(0);
+          holdStartRef.current = null;
+          setDetectedDir('center');
+          return;
+        }
+
+        // Compute head pose
+        const { yawRatio, pitchRatio } = computeHeadPose(landmarks);
+        const dir = classifyDirection(yawRatio, pitchRatio);
+        setDetectedDir(dir);
+        setDebugInfo({ yaw: yawRatio, pitch: pitchRatio, dir });
+
+        // Draw landmarks on canvas (only every 2nd frame to save CPU)
+        if (frameCount % 2 === 0) {
+          drawLandmarks(landmarks);
+        }
+      } catch (err) {
+        console.error('[LivenessLoop] Frame error (loop continues):', err.message);
       }
-
-      setFaceDetected(true);
-
-      // Check face distance
-      const dist = checkFaceDistance(landmarks);
-      setDistanceStatus(dist);
-
-      if (dist !== 'OK') {
-        setProgress(0);
-        holdStartRef.current = null;
-        setDetectedDir('center');
-        animFrameRef.current = requestAnimationFrame(loop);
-        return;
-      }
-
-      // Compute head pose (no longer blocked by isFaceInOval)
-      const { yawRatio, pitchRatio } = computeHeadPose(landmarks);
-      const dir = classifyDirection(yawRatio, pitchRatio);
-      setDetectedDir(dir);
-      setDebugInfo({ yaw: yawRatio, pitch: pitchRatio, dir });
-
-      // Draw landmarks on canvas
-      drawLandmarks(landmarks);
-
-      animFrameRef.current = requestAnimationFrame(loop);
     };
 
     animFrameRef.current = requestAnimationFrame(loop);
