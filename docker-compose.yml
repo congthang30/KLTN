@@ -19,6 +19,9 @@ services:
     container_name: zkp-blockchain
     ports:
       - "8545:8545"
+    volumes:
+      - ./blockchain:/app
+      - /app/node_modules
     command: bash -c "chmod +x start.sh && ./start.sh"
 
   backend:
