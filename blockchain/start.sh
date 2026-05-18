@@ -11,7 +11,8 @@ until curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","param
 done
 
 echo "🚀 Hardhat node is running! Deploying smart contracts..."
-npx hardhat run scripts/deploy.js --network localhost
+# --no-compile: Dùng artifacts đã biên dịch sẵn trong Dockerfile, không cần tải compiler
+npx hardhat run scripts/deploy.js --network localhost --no-compile
 
 # Giữ tiến trình Hardhat node chạy liên tục ở foreground
 wait $NODE_PID

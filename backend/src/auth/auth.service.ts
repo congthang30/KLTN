@@ -94,7 +94,7 @@ export class AuthService {
     // Generate a unique nonce for this login session
     const nonce = `ZKP-Auth-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     await this.prisma.adminProfile.update({
-      where: { walletAddress },
+      where: { id: adminProfile.id },
       data: { nonce },
     });
 
