@@ -168,45 +168,77 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
     animFrameRef.current = requestAnimationFrame(loop);
   }, []);
 
-  // ── Progress tracking (separate from detection to avoid stale closures) ──
+  // ── Refs to bridge detection loop ↔ progress ticker ──
+  const detectedDirRef = useRef('center');
+  const faceDetectedRef = useRef(false);
+  const distanceStatusRef = useRef('OK');
+  const directionsRef = useRef([]);
+  const currentIdxRef = useRef(0);
+  const passedDirsRef = useRef([]);
+  const allPassedRef = useRef(false);
+
+  // Keep refs synced with state
+  useEffect(() => { detectedDirRef.current = detectedDir; }, [detectedDir]);
+  useEffect(() => { faceDetectedRef.current = faceDetected; }, [faceDetected]);
+  useEffect(() => { distanceStatusRef.current = distanceStatus; }, [distanceStatus]);
+  useEffect(() => { directionsRef.current = directions; }, [directions]);
+  useEffect(() => { currentIdxRef.current = currentIdx; }, [currentIdx]);
+  useEffect(() => { passedDirsRef.current = passedDirs; }, [passedDirs]);
+  useEffect(() => { allPassedRef.current = allPassed; }, [allPassed]);
+
+  // ── Progress ticker (runs every 100ms, reads refs, no stale closures) ──
   useEffect(() => {
-    if (status !== 'active' || allPassed) return;
-    if (directions.length === 0) return;
+    if (status !== 'active') return;
 
-    const targetDir = directions[currentIdx];
-    if (!targetDir) return;
+    const ticker = setInterval(() => {
+      if (allPassedRef.current) return;
 
-    if (detectedDir === targetDir && distanceStatus === 'OK' && faceDetected) {
-      if (!holdStartRef.current) {
-        holdStartRef.current = performance.now();
-      }
-      const elapsed = performance.now() - holdStartRef.current;
-      const pct = Math.min(100, (elapsed / THRESHOLDS.HOLD_DURATION) * 100);
-      setProgress(pct);
+      const dirs = directionsRef.current;
+      const idx = currentIdxRef.current;
+      if (dirs.length === 0 || idx >= dirs.length) return;
 
-      if (elapsed >= THRESHOLDS.HOLD_DURATION) {
-        // Direction passed!
-        const newPassed = [...passedDirs, targetDir];
-        setPassedDirs(newPassed);
-        setProgress(0);
-        holdStartRef.current = null;
+      const targetDir = dirs[idx];
+      const detected = detectedDirRef.current;
+      const hasFace = faceDetectedRef.current;
+      const dist = distanceStatusRef.current;
 
-        if (currentIdx + 1 >= directions.length) {
-          // All directions passed!
-          setAllPassed(true);
-          setMessage('✅ Xác thực người thật thành công!');
-        } else {
-          setCurrentIdx(prev => prev + 1);
+      if (detected === targetDir && dist === 'OK' && hasFace) {
+        // Correct direction held
+        if (!holdStartRef.current) {
+          holdStartRef.current = performance.now();
+        }
+        const elapsed = performance.now() - holdStartRef.current;
+        const pct = Math.min(100, (elapsed / THRESHOLDS.HOLD_DURATION) * 100);
+        setProgress(pct);
+
+        if (elapsed >= THRESHOLDS.HOLD_DURATION) {
+          // Direction passed!
+          const newPassed = [...passedDirsRef.current, targetDir];
+          setPassedDirs(newPassed);
+          passedDirsRef.current = newPassed;
+          setProgress(0);
+          holdStartRef.current = null;
+
+          if (idx + 1 >= dirs.length) {
+            setAllPassed(true);
+            allPassedRef.current = true;
+            setMessage('✅ Xác thực người thật thành công!');
+          } else {
+            setCurrentIdx(idx + 1);
+            currentIdxRef.current = idx + 1;
+          }
+        }
+      } else {
+        // Wrong direction - reset
+        if (holdStartRef.current) {
+          holdStartRef.current = null;
+          setProgress(0);
         }
       }
-    } else {
-      // Wrong direction or conditions not met - reset progress
-      if (holdStartRef.current) {
-        holdStartRef.current = null;
-        setProgress(0);
-      }
-    }
-  }, [detectedDir, distanceStatus, faceDetected, status, allPassed, currentIdx, directions, passedDirs]);
+    }, 100); // Tick every 100ms
+
+    return () => clearInterval(ticker);
+  }, [status]);
 
   // ── Trigger callback when all passed ──
   useEffect(() => {
