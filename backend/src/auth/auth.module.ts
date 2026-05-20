@@ -12,7 +12,7 @@ import { BlockchainModule } from '../blockchain/blockchain.module';
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'default_secret',
-      signOptions: { expiresIn: process.env.JWT_EXPIRATION || '1h' },
+      signOptions: { expiresIn: (process.env.JWT_EXPIRATION || '1h') as any },
     }),
     ZkpModule,
     BlockchainModule,
