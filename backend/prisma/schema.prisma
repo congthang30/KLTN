@@ -62,6 +62,9 @@ model DoctorProfile {
 
   doctorName          String
   licenseId           String   @unique
+  portraitImage        String?  // Base64-encoded portrait photo
+  blockchainHash       String?  // SHA256(licenseId + position + faceHash + doctorId)
+
   faceEmbedding       String?  // JSON array of face embedding vectors (for face login)
   faceEmbeddingHash   String?  // Hash of face embedding (legacy)
   dateOfBirth         DateTime

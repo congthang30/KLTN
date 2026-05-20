@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useThemeLang } from '../contexts/ThemeLangContext';
 import Sidebar from '../components/Sidebar';
+import CreateDoctorModal from '../components/CreateDoctorModal';
 import api from '../services/api';
 
 const ADMIN_NAV = [
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('doctor');
   const [data, setData] = useState({ doctors: [], diagnoses: [], transactions: [], aimodels: [] });
   const [loading, setLoading] = useState(true);
+  const [showCreateDoctor, setShowCreateDoctor] = useState(false);
 
   useEffect(() => { loadHospitalData(); }, []);
 
@@ -82,16 +84,29 @@ export default function DashboardPage() {
       <main style={{ flex: 1, padding: '32px 28px', minWidth: 0 }}>
 
         {/* Page header */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <span style={{ fontSize: '1.5rem' }}>{activeItem?.icon}</span>
-            <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>
-              {activeItem?.label}
-            </h1>
+        <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <span style={{ fontSize: '1.5rem' }}>{activeItem?.icon}</span>
+              <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>
+                {activeItem?.label}
+              </h1>
+            </div>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              {countLabel[activeTab]}
+            </p>
           </div>
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            {countLabel[activeTab]}
-          </p>
+
+          {/* Action button — only on doctor tab */}
+          {activeTab === 'doctor' && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowCreateDoctor(true)}
+              style={{ whiteSpace: 'nowrap', padding: '10px 20px', fontWeight: 700 }}
+            >
+              + Thêm bác sĩ
+            </button>
+          )}
         </div>
 
         {/* Table card */}
@@ -225,6 +240,19 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+
+      {/* ── Create Doctor Modal ── */}
+      <CreateDoctorModal
+        open={showCreateDoctor}
+        onClose={() => setShowCreateDoctor(false)}
+        onSuccess={(newDoctor) => {
+          setData((prev) => ({
+            ...prev,
+            doctors: [{ ...newDoctor, user: { username: newDoctor.username, email: newDoctor.email, status: 'ACTIVE' } }, ...prev.doctors],
+          }));
+          setShowCreateDoctor(false);
+        }}
+      />
     </div>
   );
 }
