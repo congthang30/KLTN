@@ -18,7 +18,7 @@ export default function Sidebar({
   activeId,
   onSelect,
   title = 'Dashboard',
-  titleIcon = '🏠',
+  titleIcon = '',
   badgeLabel,
   userEmail,
   defaultCollapsed = false,
@@ -30,15 +30,15 @@ export default function Sidebar({
       style={{
         width: collapsed ? 68 : 240,
         flexShrink: 0,
-        background: 'rgba(255,255,255,0.03)',
+        background: 'var(--bg-surface)',
         borderRight: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
         padding: '24px 0',
-        transition: 'width 0.25s ease',
+        transition: 'width var(--transition-normal)',
         position: 'sticky',
-        top: 70,
-        height: 'calc(100vh - 70px)',
+        top: 64, // topbar height is usually 64px
+        height: 'calc(100vh - 64px)',
         overflowY: 'auto',
         overflowX: 'hidden',
       }}
@@ -71,7 +71,7 @@ export default function Sidebar({
               Hệ thống
             </div>
             <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-              {titleIcon} {title}
+              {title}
             </div>
           </div>
         )}
@@ -81,9 +81,9 @@ export default function Sidebar({
           onClick={() => setCollapsed((v) => !v)}
           title={collapsed ? 'Mở rộng' : 'Thu gọn'}
           style={{
-            background: 'rgba(255,255,255,0.07)',
+            background: 'var(--bg-elevated)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             width: 32,
             height: 32,
             display: 'flex',
@@ -94,7 +94,7 @@ export default function Sidebar({
             flexShrink: 0,
             fontSize: '1rem',
             fontWeight: 700,
-            transition: 'background 0.2s',
+            transition: 'background var(--transition-fast)',
           }}
         >
           {collapsed ? '›' : '‹'}
@@ -118,35 +118,15 @@ export default function Sidebar({
               key={item.id}
               onClick={() => onSelect?.(item.id)}
               title={collapsed ? item.label : ''}
+              className={isActive ? 'nav-item active' : 'nav-item'}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                padding: collapsed ? '12px 0' : '11px 14px',
                 justifyContent: collapsed ? 'center' : 'flex-start',
-                borderRadius: 10,
+                padding: collapsed ? 'var(--space-3) 0' : '8px 12px',
                 border: 'none',
-                cursor: 'pointer',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.92rem',
-                background: isActive
-                  ? 'linear-gradient(135deg, var(--primary), var(--primary-light, #6366f1))'
-                  : 'transparent',
-                color: isActive ? '#fff' : 'var(--text-secondary)',
-                boxShadow: isActive ? '0 4px 14px rgba(99,102,241,0.35)' : 'none',
-                transform: isActive ? 'translateX(2px)' : 'none',
-                transition: 'all 0.18s ease',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'transparent';
+                background: isActive ? 'var(--primary-subtle)' : 'transparent',
+                width: '100%',
               }}
             >
-              <span style={{ fontSize: '1.15rem', flexShrink: 0 }}>{item.icon}</span>
               {!collapsed && <span>{item.label}</span>}
             </button>
           );

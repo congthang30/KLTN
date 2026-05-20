@@ -21,7 +21,7 @@ export default function AuthenticatePage() {
   );
   const [customWallet, setCustomWallet] = useState('');
   const [status, setStatus] = useState(
-    isAdmin ? '✅ Ví đã được xác thực qua blockchain khi đăng nhập. Tiến hành quét khuôn mặt.' : ''
+    isAdmin ? 'Ví đã được xác thực qua blockchain khi đăng nhập. Tiến hành quét khuôn mặt.' : ''
   );
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +42,7 @@ export default function AuthenticatePage() {
         connectMock(addr);
         setWalletVerified(true);
         setVerifiedWalletAddress(addr);
-        setStatus('✅ Step 1 complete (Mock Wallet): Wallet verified! Proceed to Face scan.');
+        setStatus('Step 1 complete (Mock Wallet): Wallet verified! Proceed to Face scan.');
         return;
       }
 
@@ -59,10 +59,10 @@ export default function AuthenticatePage() {
       if (res.data.verified) {
         setWalletVerified(true);
         setVerifiedWalletAddress(addr);
-        setStatus('✅ Step 1 complete: Wallet verified! Please proceed to Face scan.');
+        setStatus('Step 1 complete: Wallet verified! Please proceed to Face scan.');
       }
     } catch (err) {
-      setStatus('❌ Wallet verification failed: ' + (err.message || 'Unknown error'));
+      setStatus('Wallet verification failed: ' + (err.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export default function AuthenticatePage() {
     try {
       const res = await authService.verifyFace(embedding);
       if (res.data.verified) {
-        setStatus(`✅ Xác thực thành công! (similarity: ${(res.data.similarity * 100).toFixed(1)}%)`);
+        setStatus(`Xác thực thành công! (similarity: ${(res.data.similarity * 100).toFixed(1)}%)`);
 
         updateToken(res.data.access_token, { verified: true });
 
@@ -86,7 +86,7 @@ export default function AuthenticatePage() {
         }, 1500);
       }
     } catch (err) {
-      setStatus('❌ Face verification failed: ' + (err.response?.data?.message || err.message));
+      setStatus('Face verification failed: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -109,7 +109,7 @@ export default function AuthenticatePage() {
         borderRadius: 'var(--radius-lg)'
       }}>
         <h1 style={{ marginBottom: 12, color: 'var(--accent)', fontSize: '1.6rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          🔒 {isAdmin ? 'Admin Biometric Verification' : 'Dual-Factor Security Authentication'}
+          {isAdmin ? 'Admin Biometric Verification' : 'Dual-Factor Security Authentication'}
         </h1>
         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 32, fontSize: '0.9rem' }}>
           {isAdmin
@@ -155,7 +155,7 @@ export default function AuthenticatePage() {
         {/* Step 1: Wallet Connect (Doctor only; Admin already verified) */}
         {!walletVerified ? (
           <div style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 8, border: '1px solid var(--border)' }}>
-            <h4 style={{ marginBottom: 12, fontSize: '1rem' }}>🦊 Step 1: Verify Wallet Ownership</h4>
+            <h4 style={{ marginBottom: 12, fontSize: '1rem' }}>Step 1: Verify Wallet Ownership</h4>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 20 }}>
               Connect MetaMask and sign the verification request. The address must match your registered wallet.
             </p>
@@ -168,7 +168,7 @@ export default function AuthenticatePage() {
               border: '1px solid rgba(99, 102, 241, 0.1)',
             }}>
               <h4 style={{ fontSize: '0.9rem', color: 'var(--accent)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                🛠️ Developer Testing Tools
+                Developer Testing Tools
               </h4>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>
                 Bypass MetaMask and authenticate with any wallet address directly:
@@ -208,7 +208,7 @@ export default function AuthenticatePage() {
                 onClick={() => handleWalletVerify(customWallet, true)}
                 style={{ fontSize: '0.85rem', fontWeight: 600 }}
               >
-                🎯 Confirm Selected Wallet
+                Confirm Selected Wallet
               </button>
             </div>
           </div>
@@ -216,7 +216,7 @@ export default function AuthenticatePage() {
           /* Step 2: Face Capture with Liveness Detection */
           <div className="fade-in" style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 8, border: '1px solid var(--border)' }}>
             <h4 style={{ marginBottom: 12, fontSize: '1rem' }}>
-              📷 {isAdmin ? 'Quét khuôn mặt để hoàn tất đăng nhập' : 'Bước 2: Xác thực sinh trắc học'}
+              {isAdmin ? 'Quét khuôn mặt để hoàn tất đăng nhập' : 'Bước 2: Xác thực sinh trắc học'}
             </h4>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 20 }}>
               Hệ thống sẽ yêu cầu bạn quay đầu để xác minh người thật, sau đó so khớp khuôn mặt đã đăng ký.
@@ -258,7 +258,7 @@ export default function AuthenticatePage() {
             onClick={() => navigate('/recovery')}
             style={{ fontSize: '0.85rem', color: 'var(--warning)', fontWeight: 600 }}
           >
-            ⚠️ {isAdmin ? 'Mất ví? Khôi phục bằng MFA & Face' : 'Lost Wallet? Recover using ZKP & Face Biometric'} →
+            {isAdmin ? 'Mất ví? Khôi phục bằng MFA & Face' : 'Lost Wallet? Recover using ZKP & Face Biometric'} →
           </button>
         </div>
       </div>

@@ -6,10 +6,10 @@ import CreateDoctorModal from '../components/CreateDoctorModal';
 import api from '../services/api';
 
 const ADMIN_NAV = [
-  { id: 'doctor',     icon: '👨‍⚕️', label: 'Quản lý bác sĩ' },
-  { id: 'diagnosis',  icon: '🩺',  label: 'Quản lý chuẩn đoán' },
-  { id: 'blockchain', icon: '🔗',  label: 'Giao dịch Blockchain' },
-  { id: 'ai',         icon: '🤖',  label: 'Quản lý AI Model' },
+  { id: 'doctor',     icon: '', label: 'Quản lý bác sĩ' },
+  { id: 'diagnosis',  icon: '', label: 'Quản lý chuẩn đoán' },
+  { id: 'blockchain', icon: '', label: 'Giao dịch Blockchain' },
+  { id: 'ai',         icon: '', label: 'Quản lý AI Model' },
 ];
 
 export default function DashboardPage() {
@@ -57,8 +57,8 @@ export default function DashboardPage() {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
         <div style={{ textAlign: 'center' }}>
-          <div className="spinner" style={{ margin: '0 auto 20px', width: 44, height: 44 }} />
-          <div style={{ fontSize: '1.1rem', color: 'var(--text-secondary)' }}>
+          <div className="spinner" style={{ margin: '0 auto var(--space-5)' }} />
+          <div style={{ fontSize: 'var(--text-lg)', color: 'var(--text-secondary)' }}>
             Đang tải dữ liệu bệnh viện...
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: 'calc(100vh - 70px)', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
 
       {/* ── Reusable Sidebar ── */}
       <Sidebar
@@ -75,24 +75,23 @@ export default function DashboardPage() {
         activeId={activeTab}
         onSelect={setActiveTab}
         title="Quản lý Bệnh viện"
-        titleIcon="🏥"
+        titleIcon=""
         badgeLabel="Verified Admin"
         userEmail={user?.email}
       />
 
       {/* ── Main content ── */}
-      <main style={{ flex: 1, padding: '32px 28px', minWidth: 0 }}>
+      <main style={{ flex: 1, padding: 'var(--space-8)', maxWidth: '1280px', margin: '0 auto' }}>
 
         {/* Page header */}
-        <div style={{ marginBottom: 28, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ marginBottom: 'var(--space-8)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <span style={{ fontSize: '1.5rem' }}>{activeItem?.icon}</span>
-              <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 800 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-1)' }}>
+              <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 700 }}>
                 {activeItem?.label}
               </h1>
             </div>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>
               {countLabel[activeTab]}
             </p>
           </div>
@@ -126,10 +125,10 @@ export default function DashboardPage() {
                   <tbody>
                     {data.doctors.length === 0 && <EmptyRow cols={5} />}
                     {data.doctors.map((d) => (
-                      <tr key={d.id} style={rowStyle}>
-                        <td style={tdStyle}><span style={monoId}>#{d.id.substring(0, 8)}…</span></td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{d.name}</td>
-                        <td style={{ ...tdStyle, color: 'var(--primary-light, #818cf8)' }}>{d.specialty}</td>
+                      <tr key={d.id} style={rowStyle} className="hover:bg-elevated">
+                        <td style={tdStyle}><span className="mono">#{d.id.substring(0, 8)}…</span></td>
+                        <td style={{ ...tdStyle, fontWeight: 500 }}>{d.name}</td>
+                        <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.specialty}</td>
                         <td style={tdStyle}>{d.phone}</td>
                         <td style={tdStyle}><span className="badge badge-success">{d.status}</span></td>
                       </tr>
@@ -150,12 +149,12 @@ export default function DashboardPage() {
                   <tbody>
                     {data.diagnoses.length === 0 && <EmptyRow cols={6} />}
                     {data.diagnoses.map((d) => (
-                      <tr key={d.id} style={rowStyle}>
-                        <td style={tdStyle}><span style={monoId}>#{d.id.substring(0, 8)}…</span></td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{d.patientName}</td>
-                        <td style={{ ...tdStyle, color: 'var(--accent, #f472b6)' }}>{d.disease}</td>
+                      <tr key={d.id} style={rowStyle} className="hover:bg-elevated">
+                        <td style={tdStyle}><span className="mono">#{d.id.substring(0, 8)}…</span></td>
+                        <td style={{ ...tdStyle, fontWeight: 500 }}>{d.patientName}</td>
+                        <td style={{ ...tdStyle, color: 'var(--info)' }}>{d.disease}</td>
                         <td style={tdStyle}>{d.treatment}</td>
-                        <td style={{ ...tdStyle, color: 'var(--primary-light, #818cf8)' }}>{d.doctor?.name}</td>
+                        <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.doctor?.name}</td>
                         <td style={tdStyle}>
                           <span className={`badge ${d.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}`}>
                             {d.status}
@@ -179,12 +178,12 @@ export default function DashboardPage() {
                   <tbody>
                     {data.transactions.length === 0 && <EmptyRow cols={5} />}
                     {data.transactions.map((tx) => (
-                      <tr key={tx.id} style={rowStyle}>
-                        <td style={tdStyle}><span style={monoId}>#{tx.id}</span></td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      <tr key={tx.id} style={rowStyle} className="hover:bg-elevated">
+                        <td style={tdStyle}><span className="mono">#{tx.id}</span></td>
+                        <td style={{ ...tdStyle }} className="mono text-muted">
                           {tx.txHash.substring(0, 12)}…{tx.txHash.substring(tx.txHash.length - 10)}
                         </td>
-                        <td style={{ ...tdStyle, fontWeight: 600 }}>{tx.action}</td>
+                        <td style={{ ...tdStyle, fontWeight: 500 }}>{tx.action}</td>
                         <td style={tdStyle}>{new Date(tx.timestamp).toLocaleString('vi-VN')}</td>
                         <td style={tdStyle}>
                           <span className={`badge ${tx.status === 'CONFIRMED' ? 'badge-success' : 'badge-warning'}`}>
@@ -209,20 +208,20 @@ export default function DashboardPage() {
                   <tbody>
                     {data.aimodels.length === 0 && <EmptyRow cols={5} />}
                     {data.aimodels.map((m) => (
-                      <tr key={m.id} style={rowStyle}>
-                        <td style={tdStyle}><span style={monoId}>#{m.id}</span></td>
-                        <td style={{ ...tdStyle, fontWeight: 600, color: 'var(--accent-light, #c084fc)' }}>{m.name}</td>
-                        <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{m.version}</td>
+                      <tr key={m.id} style={rowStyle} className="hover:bg-elevated">
+                        <td style={tdStyle}><span className="mono">#{m.id}</span></td>
+                        <td style={{ ...tdStyle, fontWeight: 500, color: 'var(--info)' }}>{m.name}</td>
+                        <td style={{ ...tdStyle }} className="mono">{m.version}</td>
                         <td style={tdStyle}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 90, height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 99 }}>
+                            <div style={{ width: 90, height: 6, background: 'var(--bg-elevated)', borderRadius: 'var(--radius-full)' }}>
                               <div style={{
                                 width: `${m.accuracy}%`, height: '100%',
-                                background: 'var(--success, #22c55e)',
-                                borderRadius: 99, transition: 'width 0.5s ease',
+                                background: 'var(--success)',
+                                borderRadius: 'var(--radius-full)', transition: 'width 0.5s ease',
                               }} />
                             </div>
-                            <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>{m.accuracy}%</span>
+                            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>{m.accuracy}%</span>
                           </div>
                         </td>
                         <td style={tdStyle}>
@@ -269,16 +268,15 @@ function EmptyRow({ cols }) {
 }
 
 const thStyle = {
-  padding: '14px 16px',
+  padding: 'var(--space-3) var(--space-4)',
   textAlign: 'left',
   color: 'var(--text-secondary)',
   fontWeight: 600,
-  fontSize: '0.82rem',
+  fontSize: 'var(--text-xs)',
   textTransform: 'uppercase',
   letterSpacing: '0.05em',
   whiteSpace: 'nowrap',
 };
 
-const tdStyle  = { padding: '14px 16px', verticalAlign: 'middle' };
-const rowStyle = { borderBottom: '1px solid var(--border)', transition: 'background 0.15s' };
-const monoId   = { fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-muted)' };
+const tdStyle  = { padding: 'var(--space-3) var(--space-4)', verticalAlign: 'middle', fontSize: 'var(--text-sm)' };
+const rowStyle = { borderBottom: '1px solid var(--border)', transition: 'background var(--transition-fast)' };

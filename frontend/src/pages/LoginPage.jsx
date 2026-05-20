@@ -144,10 +144,10 @@ export default function LoginPage() {
       {/* Top right controls */}
       <div style={{ position: 'absolute', top: 24, right: 24, display: 'flex', gap: 12 }}>
         <button onClick={toggleLang} className="btn btn-ghost btn-sm" style={{ fontWeight: 600 }}>
-          {lang === 'vi' ? '🇻🇳 VI' : '🇬🇧 EN'}
+          {lang === 'vi' ? 'VI' : 'EN'}
         </button>
         <button onClick={toggleTheme} className="btn btn-ghost btn-sm" style={{ fontSize: '1.2rem' }}>
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? 'Light' : 'Dark'}
         </button>
       </div>
 
@@ -188,7 +188,7 @@ export default function LoginPage() {
               transition: 'all 0.2s ease',
             }}
           >
-            🔐 {t('login.adminTab')}
+            {t('login.adminTab')}
           </button>
           <button
             onClick={() => { setActiveTab('doctor'); setError(''); }}
@@ -205,7 +205,7 @@ export default function LoginPage() {
               transition: 'all 0.2s ease',
             }}
           >
-            👨‍⚕️ {t('login.doctorTab')}
+            {t('login.doctorTab')}
           </button>
         </div>
 
@@ -225,14 +225,14 @@ export default function LoginPage() {
                   className={`btn btn-sm ${adminMode === 'wallet' ? 'btn-primary' : 'btn-ghost'}`}
                   style={{ flex: 1, fontSize: '0.8rem' }}
                 >
-                  🦊 {t('login.connectWallet')}
+                  {t('login.connectWallet')}
                 </button>
                 <button
                   onClick={() => { setAdminMode('invite'); setError(''); }}
                   className={`btn btn-sm ${adminMode === 'invite' ? 'btn-primary' : 'btn-ghost'}`}
                   style={{ flex: 1, fontSize: '0.8rem' }}
                 >
-                  🎟️ {t('login.inviteCode')}
+                  {t('login.inviteCode')}
                 </button>
               </div>
 
@@ -253,7 +253,6 @@ export default function LoginPage() {
                     marginBottom: 20,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                      <span style={{ fontSize: '1.4rem' }}>🦊</span>
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>MetaMask</span>
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
@@ -277,7 +276,7 @@ export default function LoginPage() {
                         {walletSigning ? t('login.signing') : t('login.connecting')}
                       </>
                     ) : (
-                      <>🦊 {t('login.connectWalletBtn')}</>
+                      <>{t('login.connectWalletBtn')}</>
                     )}
                   </button>
                 </div>
@@ -322,7 +321,7 @@ export default function LoginPage() {
                           {generatingSecret ? t('login.generatingSecret') : '...'}
                         </>
                       ) : (
-                        <>🎟️ {t('login.inviteBtn')}</>
+                        <>{t('login.inviteBtn')}</>
                       )}
                     </button>
                   </form>
@@ -398,7 +397,7 @@ export default function LoginPage() {
           fontSize: '0.75rem', color: 'var(--text-muted)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         }}>
-          🔒 {t('login.securityBadge')}
+          {t('login.securityBadge')}
         </div>
       </div>
 

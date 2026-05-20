@@ -150,14 +150,14 @@ export default function CreateDoctorModal({ open, onClose, onSuccess }) {
     <Backdrop onClick={handleClose}>
       <ModalBox onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800 }}>
-            👨‍⚕️ Tạo tài khoản bác sĩ
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
+          <h2 style={{ margin: 0, fontSize: 'var(--text-xl)', fontWeight: 700 }}>
+            Tạo tài khoản bác sĩ
           </h2>
           <button onClick={handleClose} style={closeBtn}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
 
           {/* ── Portrait upload ── */}
           <div>
@@ -166,12 +166,12 @@ export default function CreateDoctorModal({ open, onClose, onSuccess }) {
               onClick={() => fileRef.current?.click()}
               style={{
                 border: `2px dashed ${preview ? 'var(--primary)' : 'var(--border)'}`,
-                borderRadius: 12,
-                padding: preview ? 0 : '28px 20px',
+                borderRadius: 'var(--radius-md)',
+                padding: preview ? 0 : 'var(--space-6)',
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: 'rgba(255,255,255,0.02)',
-                transition: 'border-color 0.2s',
+                background: 'var(--bg-elevated)',
+                transition: 'border-color var(--transition-fast)',
                 overflow: 'hidden',
                 minHeight: preview ? 180 : 'auto',
                 display: 'flex',
@@ -187,8 +187,7 @@ export default function CreateDoctorModal({ open, onClose, onSuccess }) {
                 />
               ) : (
                 <div>
-                  <div style={{ fontSize: '2rem', marginBottom: 6 }}>🖼️</div>
-                  <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
                     Click để chọn ảnh (jpg, png, webp — tối đa 5 MB)
                   </div>
                 </div>
@@ -218,11 +217,11 @@ export default function CreateDoctorModal({ open, onClose, onSuccess }) {
           </div>
 
           {/* ── Account ── */}
-          <div style={{ padding: 16, background: 'rgba(99,102,241,0.07)', borderRadius: 10, border: '1px solid rgba(99,102,241,0.2)' }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary-light, #818cf8)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              🔐 Thông tin tài khoản
+          <div style={{ padding: 'var(--space-4)', background: 'var(--primary-subtle)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--primary)', marginBottom: 'var(--space-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Thông tin tài khoản
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
               <Field label="Username *" name="username" value={form.username} onChange={handleChange} placeholder="bs_nguyenvana" />
               <Field label="Mật khẩu tạm thời *" name="tempPassword" type="password" value={form.tempPassword} onChange={handleChange} placeholder="Tối thiểu 6 ký tự" />
             </div>
@@ -230,13 +229,13 @@ export default function CreateDoctorModal({ open, onClose, onSuccess }) {
 
           {/* Error */}
           {error && (
-            <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: '#ef4444', fontSize: '0.88rem' }}>
-              ⚠️ {error}
+            <div className="alert alert-error">
+              {error}
             </div>
           )}
 
           {/* Actions */}
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', justifyContent: 'flex-end', marginTop: 'var(--space-1)' }}>
             <button type="button" className="btn btn-secondary" onClick={handleClose} disabled={loading}>
               Hủy
             </button>
@@ -292,17 +291,11 @@ function Backdrop({ children, onClick }) {
 function ModalBox({ children, onClick, style: extraStyle }) {
   return (
     <div
+      className="modal-content"
       onClick={onClick}
       style={{
-        background: 'var(--bg-card, #1e1e2e)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        padding: '28px 32px',
         width: '100%',
         maxWidth: 760,
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
         ...extraStyle,
       }}
     >
@@ -314,10 +307,10 @@ function ModalBox({ children, onClick, style: extraStyle }) {
 // ── Styles ───────────────────────────────────────────────────────────────────
 const labelStyle = {
   display: 'block',
-  fontSize: '0.8rem',
+  fontSize: 'var(--text-xs)',
   fontWeight: 600,
   color: 'var(--text-secondary)',
-  marginBottom: 6,
+  marginBottom: 'var(--space-1)',
   textTransform: 'uppercase',
   letterSpacing: '0.04em',
 };
@@ -325,22 +318,22 @@ const labelStyle = {
 const inputStyle = {
   width: '100%',
   padding: '10px 14px',
-  background: 'rgba(255,255,255,0.05)',
+  background: 'var(--bg-surface)',
   border: '1px solid var(--border)',
-  borderRadius: 8,
+  borderRadius: 'var(--radius-sm)',
   color: 'var(--text-primary)',
-  fontSize: '0.92rem',
+  fontSize: 'var(--text-sm)',
   outline: 'none',
   boxSizing: 'border-box',
-  transition: 'border-color 0.2s',
+  transition: 'border-color var(--transition-fast)',
 };
 
 const closeBtn = {
-  background: 'rgba(255,255,255,0.07)',
+  background: 'var(--bg-elevated)',
   border: '1px solid var(--border)',
-  borderRadius: 8,
-  width: 34,
-  height: 34,
+  borderRadius: 'var(--radius-sm)',
+  width: 32,
+  height: 32,
   display: 'flex', alignItems: 'center', justifyContent: 'center',
   cursor: 'pointer',
   color: 'var(--text-secondary)',

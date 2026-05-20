@@ -40,16 +40,16 @@ export default function RegisterPage() {
   // Step definitions differ by role
   // ============================================================
   const adminSteps = [
-    { num: 1, label: 'Face Scan', icon: '📷' },
-    { num: 2, label: 'Connect Wallet', icon: '🦊' },
-    { num: 3, label: 'ZKP Identity', icon: '🛡️' },
-    { num: 4, label: 'Complete', icon: '✅' },
+    { num: 1, label: 'Face Scan', icon: '' },
+    { num: 2, label: 'Connect Wallet', icon: '' },
+    { num: 3, label: 'ZKP Identity', icon: '' },
+    { num: 4, label: 'Complete', icon: '' },
   ];
 
   const doctorSteps = [
-    { num: 1, label: 'Change Password', icon: '🔑' },
-    { num: 2, label: 'Face Scan', icon: '📷' },
-    { num: 3, label: 'Complete', icon: '✅' },
+    { num: 1, label: 'Change Password', icon: '' },
+    { num: 2, label: 'Face Scan', icon: '' },
+    { num: 3, label: 'Complete', icon: '' },
   ];
 
   const steps = isAdmin ? adminSteps : doctorSteps;
@@ -191,7 +191,7 @@ export default function RegisterPage() {
   return (
     <div className="container fade-in" style={{ maxWidth: 700, padding: '40px 24px' }}>
       <h1 style={{ fontSize: '1.8rem', fontWeight: 800, marginBottom: 8, textAlign: 'center' }}>
-        🛡️ {isAdmin ? 'Admin Identity Registration' : 'Identity Registration'}
+        {isAdmin ? 'Admin Identity Registration' : 'Identity Registration'}
       </h1>
       <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 32 }}>
         {isAdmin
@@ -225,7 +225,7 @@ export default function RegisterPage() {
       {/* ======== DOCTOR ONLY: Step 1 Change Password ======== */}
       {isDoctor && step === 1 && (
         <div className="card" style={{ padding: 32 }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>🔑 Change Your Temporary Password</h2>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>Change Your Temporary Password</h2>
           <form onSubmit={handleChangePassword}>
             <div className="form-group">
               <label className="form-label">Current (Temporary) Password</label>
@@ -252,7 +252,7 @@ export default function RegisterPage() {
       {/* ======== SHARED: Face Scan ======== */}
       {step === faceStep && (
         <div className="card" style={{ padding: 32 }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>📷 Xác thực khuôn mặt người thật</h2>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>Xác thực khuôn mặt người thật</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.9rem' }}>
             Hệ thống sẽ yêu cầu bạn quay đầu theo các hướng để xác minh bạn là người thật.
             Face embedding sẽ được dùng cho xác thực sinh trắc học và ZKP identity.
@@ -276,7 +276,7 @@ export default function RegisterPage() {
       {/* ======== ADMIN ONLY: Wallet Connect ======== */}
       {isAdmin && step === walletStep && (
         <div className="card" style={{ padding: 32 }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>🦊 Connect Wallet</h2>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>Connect Wallet</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.9rem' }}>
             Your wallet will become your primary authentication method. Choose any wallet address you prefer.
           </p>
@@ -289,7 +289,7 @@ export default function RegisterPage() {
             border: '1px solid rgba(99, 102, 241, 0.1)',
           }}>
             <h4 style={{ fontSize: '0.9rem', color: 'var(--accent)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              🛠️ Developer Testing Tools
+              Developer Testing Tools
             </h4>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>
               Skip MetaMask connection or select a pre-funded Hardhat account directly:
@@ -329,7 +329,7 @@ export default function RegisterPage() {
               onClick={() => handleWalletConnected(customWallet, true)}
               style={{ fontSize: '0.85rem', fontWeight: 600 }}
             >
-              🎯 Confirm Selected Wallet Address
+              Confirm Selected Wallet Address
             </button>
           </div>
 
@@ -348,7 +348,7 @@ export default function RegisterPage() {
       {/* ======== ADMIN ONLY: ZKP Identity ======== */}
       {isAdmin && step === zkpStep && (
         <div className="card" style={{ padding: 32 }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>🛡️ Generate ZKP Identity</h2>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: 20 }}>Generate ZKP Identity</h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.9rem' }}>
             A cryptographic commitment will be created from your secret and face data, then stored on the blockchain.
             This is the final step of your passwordless identity setup.
@@ -363,13 +363,12 @@ export default function RegisterPage() {
               {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Chưa có ví nào đang kết nối'}
             </div>
             <div style={{ fontSize: '0.75rem', marginTop: 12, color: 'var(--warning)', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
-              <span>⚠️</span>
               <span>Nếu MetaMask bật lên yêu cầu ký với một ví khác, hãy <b>từ chối (Reject)</b> và chọn đúng ví này trong bảng điều khiển của Extension MetaMask trước khi thử lại!</span>
             </div>
           </div>
 
           <button className="btn btn-primary btn-lg btn-full" onClick={handleZkpRegister} disabled={loading || !address}>
-            {loading ? 'Generating...' : '🔐 Generate ZKP Identity'}
+            {loading ? 'Generating...' : 'Generate ZKP Identity'}
           </button>
           <button
             className="btn btn-secondary btn-full"
@@ -386,7 +385,6 @@ export default function RegisterPage() {
       {/* ======== SHARED: Done ======== */}
       {step === doneStep && (
         <div className="card" style={{ padding: 32, textAlign: 'center' }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
           <h2 style={{ fontSize: '1.4rem', marginBottom: 16 }}>
             {isAdmin ? 'Thiết lập tài khoản Admin hoàn tất!' : 'Đăng ký hoàn tất!'}
           </h2>
@@ -394,7 +392,7 @@ export default function RegisterPage() {
           <div className="alert alert-info" style={{ textAlign: 'left' }}>
             {isAdmin ? (
               <>
-                <strong>✅ Danh tính ZKP đã được đăng ký trên blockchain.</strong>
+                <strong>Danh tính ZKP đã được đăng ký trên blockchain.</strong>
                 <p style={{ fontSize: '0.85rem', marginTop: 8, color: 'var(--text-secondary)' }}>
                   Từ giờ bạn đăng nhập bằng <b>Connect Wallet</b> + <b>Face Scan</b>. 
                   Không cần username/password nữa!
@@ -405,7 +403,7 @@ export default function RegisterPage() {
                 </p>
               </>
             ) : (
-              <strong>✅ Bạn đã hoàn tất cập nhật mật khẩu và khuôn mặt. Từ giờ hãy sử dụng mật khẩu mới này để đăng nhập.</strong>
+              <strong>Bạn đã hoàn tất cập nhật mật khẩu và khuôn mặt. Từ giờ hãy sử dụng mật khẩu mới này để đăng nhập.</strong>
             )}
           </div>
 
