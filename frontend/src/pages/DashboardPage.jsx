@@ -53,6 +53,142 @@ export default function DashboardPage() {
     ai:         `${data.aimodels.length} mô hình AI đang quản lý`,
   };
 
+  const tableContent = (
+    <div className="card fade-in data-table-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="table-scroll" style={{ overflowX: 'auto' }}>
+        <table className="dashboard-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.93rem' }}>
+
+          {activeTab === 'doctor' && (
+            <>
+              <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
+                <tr>
+                  {['ID', 'Họ và Tên', 'Chuyên Khoa', 'Chức Vụ', 'Trạng Thái'].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.doctors.length === 0 && <EmptyRow cols={5} />}
+                {data.doctors.map((d) => (
+                  <tr key={d.id} style={rowStyle} className="hover:bg-elevated">
+                    <td style={tdStyle}><span className="mono">#{formatShortId(d.id)}</span></td>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>{getDoctorName(d)}</td>
+                    <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.specialties || d.specialty || 'Chưa cập nhật'}</td>
+                    <td style={tdStyle}>{d.position || 'Chưa cập nhật'}</td>
+                    <td style={tdStyle}>
+                      <span className={`badge ${getDoctorStatus(d) === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`}>
+                        {getDoctorStatus(d)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </>
+          )}
+
+          {activeTab === 'diagnosis' && (
+            <>
+              <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
+                <tr>
+                  {['ID', 'Bệnh Nhân', 'Bệnh Lý', 'Điều Trị', 'Bác Sĩ Phụ Trách', 'Trạng Thái'].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.diagnoses.length === 0 && <EmptyRow cols={6} />}
+                {data.diagnoses.map((d) => (
+                  <tr key={d.id} style={rowStyle} className="hover:bg-elevated">
+                    <td style={tdStyle}><span className="mono">#{formatShortId(d.id)}</span></td>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>{d.patientName}</td>
+                    <td style={{ ...tdStyle, color: 'var(--info)' }}>{d.disease}</td>
+                    <td style={tdStyle}>{d.treatment}</td>
+                    <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.doctor?.doctorName || d.doctor?.name || 'Chưa cập nhật'}</td>
+                    <td style={tdStyle}>
+                      <span className={`badge ${d.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}`}>
+                        {d.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </>
+          )}
+
+          {activeTab === 'blockchain' && (
+            <>
+              <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
+                <tr>
+                  {['Tx ID', 'Hash Giao Dịch', 'Hành Động', 'Ngày Giờ', 'Trạng Thái Mạng'].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.transactions.length === 0 && <EmptyRow cols={5} />}
+                {data.transactions.map((tx) => (
+                  <tr key={tx.id} style={rowStyle} className="hover:bg-elevated">
+                    <td style={tdStyle}><span className="mono">#{formatShortId(tx.id)}</span></td>
+                    <td style={{ ...tdStyle }} className="mono text-muted">
+                      {formatHash(tx.txHash || tx.transactionId)}
+                    </td>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>{tx.action || 'Đăng ký dữ liệu'}</td>
+                    <td style={tdStyle}>{formatDateTime(tx.timestamp || tx.confirmTime)}</td>
+                    <td style={tdStyle}>
+                      <span className={`badge ${getTransactionStatus(tx) === 'CONFIRMED' || getTransactionStatus(tx) === 'SUCCESS' ? 'badge-success' : 'badge-warning'}`}>
+                        {getTransactionStatus(tx)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </>
+          )}
+
+          {activeTab === 'ai' && (
+            <>
+              <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
+                <tr>
+                  {['Model ID', 'Tên Hệ Thống AI', 'Phiên Bản', 'Độ Chính Xác', 'Trạng Thái'].map((h) => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.aimodels.length === 0 && <EmptyRow cols={5} />}
+                {data.aimodels.map((m) => (
+                  <tr key={m.id} style={rowStyle} className="hover:bg-elevated">
+                    <td style={tdStyle}><span className="mono">#{formatShortId(m.id)}</span></td>
+                    <td style={{ ...tdStyle, fontWeight: 500, color: 'var(--info)' }}>{m.name || m.modelName}</td>
+                    <td style={{ ...tdStyle }} className="mono">{m.version}</td>
+                    <td style={tdStyle}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 90, height: 6, background: 'var(--bg-elevated)', borderRadius: 'var(--radius-full)' }}>
+                          <div style={{
+                            width: `${m.accuracy ?? 0}%`, height: '100%',
+                            background: 'var(--success)',
+                            borderRadius: 'var(--radius-full)', transition: 'width 0.5s ease',
+                          }} />
+                        </div>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>{m.accuracy ?? 0}%</span>
+                      </div>
+                    </td>
+                    <td style={tdStyle}>
+                      <span className={`badge ${m.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}`}>
+                        {m.status || 'UNKNOWN'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </>
+          )}
+
+        </table>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
@@ -67,7 +203,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)', background: 'var(--bg)' }}>
+    <div className="dashboard-shell" style={{ display: 'flex', minHeight: 'calc(100vh - 64px)', background: 'var(--bg)' }}>
 
       {/* ── Reusable Sidebar ── */}
       <Sidebar
@@ -81,10 +217,11 @@ export default function DashboardPage() {
       />
 
       {/* ── Main content ── */}
-      <main style={{ flex: 1, padding: 'var(--space-8)', maxWidth: '1280px', margin: '0 auto' }}>
+      <main className="dashboard-main" style={{ flex: 1, padding: 'var(--space-8)', maxWidth: '1280px', margin: '0 auto' }}>
+        <MobileTabNav items={ADMIN_NAV} activeId={activeTab} onSelect={setActiveTab} />
 
         {/* Page header */}
-        <div style={{ marginBottom: 'var(--space-8)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)' }}>
+        <div className="dashboard-page-header" style={{ marginBottom: 'var(--space-8)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--space-4)' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-1)' }}>
               <h1 style={{ margin: 0, fontSize: 'var(--text-2xl)', fontWeight: 700 }}>
@@ -99,7 +236,7 @@ export default function DashboardPage() {
           {/* Action button — only on doctor tab */}
           {activeTab === 'doctor' && (
             <button
-              className="btn btn-primary"
+              className="btn btn-primary dashboard-create-btn"
               onClick={() => setShowCreateDoctor(true)}
               style={{ whiteSpace: 'nowrap', padding: '10px 20px', fontWeight: 700 }}
             >
@@ -108,140 +245,8 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Table card */}
-        <div className="card fade-in" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.93rem' }}>
-
-              {activeTab === 'doctor' && (
-                <>
-                  <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
-                    <tr>
-                      {['ID', 'Họ và Tên', 'Chuyên Khoa', 'Chức Vụ', 'Trạng Thái'].map((h) => (
-                        <th key={h} style={thStyle}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.doctors.length === 0 && <EmptyRow cols={5} />}
-                    {data.doctors.map((d) => (
-                      <tr key={d.id} style={rowStyle} className="hover:bg-elevated">
-                        <td style={tdStyle}><span className="mono">#{formatShortId(d.id)}</span></td>
-                        <td style={{ ...tdStyle, fontWeight: 500 }}>{getDoctorName(d)}</td>
-                        <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.specialties || d.specialty || 'Chưa cập nhật'}</td>
-                        <td style={tdStyle}>{d.position || 'Chưa cập nhật'}</td>
-                        <td style={tdStyle}>
-                          <span className={`badge ${getDoctorStatus(d) === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`}>
-                            {getDoctorStatus(d)}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </>
-              )}
-
-              {activeTab === 'diagnosis' && (
-                <>
-                  <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
-                    <tr>
-                      {['ID', 'Bệnh Nhân', 'Bệnh Lý', 'Điều Trị', 'Bác Sĩ Phụ Trách', 'Trạng Thái'].map((h) => (
-                        <th key={h} style={thStyle}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.diagnoses.length === 0 && <EmptyRow cols={6} />}
-                    {data.diagnoses.map((d) => (
-                      <tr key={d.id} style={rowStyle} className="hover:bg-elevated">
-                        <td style={tdStyle}><span className="mono">#{d.id.substring(0, 8)}…</span></td>
-                        <td style={{ ...tdStyle, fontWeight: 500 }}>{d.patientName}</td>
-                        <td style={{ ...tdStyle, color: 'var(--info)' }}>{d.disease}</td>
-                        <td style={tdStyle}>{d.treatment}</td>
-                        <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.doctor?.doctorName || d.doctor?.name || 'Chưa cập nhật'}</td>
-                        <td style={tdStyle}>
-                          <span className={`badge ${d.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}`}>
-                            {d.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </>
-              )}
-
-              {activeTab === 'blockchain' && (
-                <>
-                  <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
-                    <tr>
-                      {['Tx ID', 'Hash Giao Dịch', 'Hành Động', 'Ngày Giờ', 'Trạng Thái Mạng'].map((h) => (
-                        <th key={h} style={thStyle}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.transactions.length === 0 && <EmptyRow cols={5} />}
-                    {data.transactions.map((tx) => (
-                      <tr key={tx.id} style={rowStyle} className="hover:bg-elevated">
-                        <td style={tdStyle}><span className="mono">#{tx.id}</span></td>
-                        <td style={{ ...tdStyle }} className="mono text-muted">
-                          {tx.txHash.substring(0, 12)}…{tx.txHash.substring(tx.txHash.length - 10)}
-                        </td>
-                        <td style={{ ...tdStyle, fontWeight: 500 }}>{tx.action}</td>
-                        <td style={tdStyle}>{new Date(tx.timestamp).toLocaleString('vi-VN')}</td>
-                        <td style={tdStyle}>
-                          <span className={`badge ${tx.status === 'CONFIRMED' ? 'badge-success' : 'badge-warning'}`}>
-                            {tx.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </>
-              )}
-
-              {activeTab === 'ai' && (
-                <>
-                  <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
-                    <tr>
-                      {['Model ID', 'Tên Hệ Thống AI', 'Phiên Bản', 'Độ Chính Xác', 'Trạng Thái'].map((h) => (
-                        <th key={h} style={thStyle}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.aimodels.length === 0 && <EmptyRow cols={5} />}
-                    {data.aimodels.map((m) => (
-                      <tr key={m.id} style={rowStyle} className="hover:bg-elevated">
-                        <td style={tdStyle}><span className="mono">#{m.id}</span></td>
-                        <td style={{ ...tdStyle, fontWeight: 500, color: 'var(--info)' }}>{m.name}</td>
-                        <td style={{ ...tdStyle }} className="mono">{m.version}</td>
-                        <td style={tdStyle}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 90, height: 6, background: 'var(--bg-elevated)', borderRadius: 'var(--radius-full)' }}>
-                              <div style={{
-                                width: `${m.accuracy}%`, height: '100%',
-                                background: 'var(--success)',
-                                borderRadius: 'var(--radius-full)', transition: 'width 0.5s ease',
-                              }} />
-                            </div>
-                            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600 }}>{m.accuracy}%</span>
-                          </div>
-                        </td>
-                        <td style={tdStyle}>
-                          <span className={`badge ${m.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}`}>
-                            {m.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </>
-              )}
-
-            </table>
-          </div>
-        </div>
+        {tableContent}
+        <MobileDataList activeTab={activeTab} data={data} />
       </main>
 
       {/* ── Create Doctor Modal ── */}
@@ -268,6 +273,134 @@ function EmptyRow({ cols }) {
   );
 }
 
+function MobileTabNav({ items, activeId, onSelect }) {
+  return (
+    <div className="mobile-section-tabs" aria-label="Dashboard sections">
+      {items.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          className={activeId === item.id ? 'active' : ''}
+          onClick={() => onSelect(item.id)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function MobileDataList({ activeTab, data }) {
+  if (activeTab === 'doctor') {
+    return (
+      <div className="mobile-card-list">
+        {data.doctors.length === 0 && <MobileEmptyState />}
+        {data.doctors.map((doctor) => (
+          <article className="mobile-data-card" key={doctor.id}>
+            <div className="mobile-card-title-row">
+              <div>
+                <span className="mobile-card-kicker">#{formatShortId(doctor.id)}</span>
+                <h2>{getDoctorName(doctor)}</h2>
+              </div>
+              <span className={`badge ${getDoctorStatus(doctor) === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`}>
+                {getDoctorStatus(doctor)}
+              </span>
+            </div>
+            <MobileField label="Chuyên khoa" value={doctor.specialties || doctor.specialty || 'Chưa cập nhật'} />
+            <MobileField label="Chức vụ" value={doctor.position || 'Chưa cập nhật'} />
+            <MobileField label="Email" value={doctor.user?.email || doctor.email || 'Chưa cập nhật'} />
+          </article>
+        ))}
+      </div>
+    );
+  }
+
+  if (activeTab === 'diagnosis') {
+    return (
+      <div className="mobile-card-list">
+        {data.diagnoses.length === 0 && <MobileEmptyState />}
+        {data.diagnoses.map((diagnosis) => (
+          <article className="mobile-data-card" key={diagnosis.id}>
+            <div className="mobile-card-title-row">
+              <div>
+                <span className="mobile-card-kicker">#{formatShortId(diagnosis.id)}</span>
+                <h2>{diagnosis.patientName || 'Chưa cập nhật'}</h2>
+              </div>
+              <span className={`badge ${diagnosis.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}`}>
+                {diagnosis.status || 'UNKNOWN'}
+              </span>
+            </div>
+            <MobileField label="Bệnh lý" value={diagnosis.disease || 'Chưa cập nhật'} />
+            <MobileField label="Điều trị" value={diagnosis.treatment || 'Chưa cập nhật'} />
+            <MobileField label="Bác sĩ" value={diagnosis.doctor?.doctorName || diagnosis.doctor?.name || 'Chưa cập nhật'} />
+          </article>
+        ))}
+      </div>
+    );
+  }
+
+  if (activeTab === 'blockchain') {
+    return (
+      <div className="mobile-card-list">
+        {data.transactions.length === 0 && <MobileEmptyState />}
+        {data.transactions.map((tx) => (
+          <article className="mobile-data-card" key={tx.id}>
+            <div className="mobile-card-title-row">
+              <div>
+                <span className="mobile-card-kicker">#{formatShortId(tx.id)}</span>
+                <h2>{tx.action || 'Đăng ký dữ liệu'}</h2>
+              </div>
+              <span className={`badge ${getTransactionStatus(tx) === 'CONFIRMED' || getTransactionStatus(tx) === 'SUCCESS' ? 'badge-success' : 'badge-warning'}`}>
+                {getTransactionStatus(tx)}
+              </span>
+            </div>
+            <MobileField label="Hash" value={formatHash(tx.txHash || tx.transactionId)} mono />
+            <MobileField label="Ngày giờ" value={formatDateTime(tx.timestamp || tx.confirmTime)} />
+          </article>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mobile-card-list">
+      {data.aimodels.length === 0 && <MobileEmptyState />}
+      {data.aimodels.map((model) => (
+        <article className="mobile-data-card" key={model.id}>
+          <div className="mobile-card-title-row">
+            <div>
+              <span className="mobile-card-kicker">#{formatShortId(model.id)}</span>
+              <h2>{model.name || model.modelName || 'Chưa cập nhật'}</h2>
+            </div>
+            <span className={`badge ${model.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}`}>
+              {model.status || 'UNKNOWN'}
+            </span>
+          </div>
+          <MobileField label="Phiên bản" value={model.version || 'Chưa cập nhật'} mono />
+          <MobileField label="Độ chính xác" value={`${model.accuracy ?? 0}%`} />
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function MobileField({ label, value, mono = false }) {
+  return (
+    <div className="mobile-field">
+      <span>{label}</span>
+      <strong className={mono ? 'mono' : ''}>{value}</strong>
+    </div>
+  );
+}
+
+function MobileEmptyState() {
+  return (
+    <div className="mobile-empty-state">
+      Không có dữ liệu
+    </div>
+  );
+}
+
 function formatShortId(id) {
   return id ? `${id.substring(0, 8)}…` : '--';
 }
@@ -278,6 +411,21 @@ function getDoctorName(doctor) {
 
 function getDoctorStatus(doctor) {
   return doctor.doctorStatus || doctor.user?.status || doctor.status || 'UNKNOWN';
+}
+
+function getTransactionStatus(tx) {
+  return tx.status || tx.blockchainStatus || 'UNKNOWN';
+}
+
+function formatHash(hash) {
+  if (!hash) return 'Chưa cập nhật';
+  if (hash.length <= 24) return hash;
+  return `${hash.substring(0, 12)}…${hash.substring(hash.length - 10)}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return 'Chưa cập nhật';
+  return new Date(value).toLocaleString('vi-VN');
 }
 
 const thStyle = {

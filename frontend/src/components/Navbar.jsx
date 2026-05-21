@@ -68,7 +68,7 @@ export default function Navbar() {
       `}</style>
 
       {/* ── LEFT: LOGO BRANDING ── */}
-      <Link to="/dashboard" style={{ display: 'flex', alignMates: 'center', gap: 10, textDecoration: 'none', marginRight: 32 }}>
+      <Link className="navbar-brand" to="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginRight: 32 }}>
         {/* Logo Shield lồng Hexagon hình khối công nghệ ZK */}
         <div style={{
           width: 30, height: 30, borderRadius: 8, background: '#2563eb',
@@ -79,7 +79,7 @@ export default function Navbar() {
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
         </div>
-        <span style={{
+        <span className="brand-text" style={{
           fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.02em', color: '#0f172a',
           alignSelf: 'center'
         }}>
@@ -88,7 +88,7 @@ export default function Navbar() {
       </Link>
 
       {/* ── CENTER: NAV LINKS ── */}
-      <div style={{ display: 'flex', gap: 4, flex: 1, alignItems: 'center' }}>
+      <div className="navbar-links" style={{ display: 'flex', gap: 4, flex: 1, alignItems: 'center' }}>
         {navItems.map(item => {
           const isActive = location.pathname === item.path;
           return (
@@ -104,7 +104,7 @@ export default function Navbar() {
       </div>
 
       {/* ── RIGHT: WEB3 STATUS & USER PROFILE ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="navbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {/* Wallet Pill Status */}
         {address && (
           <div className="wallet-badge" title="Connected Wallet">
@@ -125,12 +125,12 @@ export default function Navbar() {
             {user?.username ? user.username.charAt(0) : 'U'}
           </div>
           
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
+          <span className="user-name" style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e293b' }}>
             {user?.username}
           </span>
           
           {user?.role === 'ADMIN' && (
-            <span style={{ 
+            <span className="role-chip" style={{
               padding: '1px 5px', fontSize: '0.65rem', fontWeight: 700,
               background: '#eff6ff', color: '#2563eb', borderRadius: '4px',
               border: '1px solid #bfdbfe', letterSpacing: '0.3px'
