@@ -66,8 +66,35 @@ export class AuthController {
   }
 
   // ============================================================
-  // SHARED: Post-login verification
+  // SHARED: Post-login verification & Wallet Recovery
   // ============================================================
+
+  /**
+   * Public endpoint to verify face against username for wallet recovery.
+   * Returns a temporary access token for ZKP recovery page.
+   */
+  @Post('recover-init')
+  async recoverInit(@Body() body: { embedding: number[] }) {
+    return this.authService.recoverInit(body.embedding);
+  }
+
+  /**
+   * Public endpoint to verify face against doctor profiles for password recovery.
+   * Returns a temporary access token for Reset Password page.
+   */
+  @Post('doctor-recover-init')
+  async doctorRecoverInit(@Body() body: { embedding: number[] }) {
+    return this.authService.doctorRecoverInit(body.embedding);
+  }
+
+  /**
+   * Reset password using temporary reset token
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('reset-password')
+  async resetPassword(@Request() req, @Body() body: { newPassword: string }) {
+    return this.authService.resetPassword(req.user.sub, body.newPassword);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('verify-wallet')

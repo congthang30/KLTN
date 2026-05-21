@@ -6,6 +6,7 @@ import RegisterPage from './pages/RegisterPage';
 import AuthenticatePage from './pages/AuthenticatePage';
 import DashboardPage from './pages/DashboardPage';
 import RecoveryPage from './pages/RecoveryPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 
 function ProtectedRoute({ children, requiredRole, pageType = 'secure' }) {
   const { user, token } = useAuth();
@@ -58,9 +59,9 @@ export default function App() {
             <ProtectedRoute pageType="secure"><DashboardPage /></ProtectedRoute>
           } />
           
-          <Route path="/recovery" element={
-            <ProtectedRoute pageType="recovery"><RecoveryPage /></ProtectedRoute>
-          } />
+          <Route path="/recovery" element={<RecoveryPage />} />
+          
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           
           <Route path="*" element={<Navigate to={token ? "/dashboard" : "/login"} />} />
         </Routes>

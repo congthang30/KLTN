@@ -23,6 +23,15 @@ export const authService = {
   verifyFace: (embedding) =>
     api.post('/auth/verify-face', { embedding }),
 
+  recoverInit: (embedding) =>
+    api.post('/auth/recover-init', { embedding }),
+
+  doctorRecoverInit: (embedding) =>
+    api.post('/auth/doctor-recover-init', { embedding }),
+
+  resetPassword: (newPassword) =>
+    api.post('/auth/reset-password', { newPassword }),
+
   // Admin: MFA secret for recovery
   generateMfaSecret: () => api.post('/auth/generate-secret'),
 

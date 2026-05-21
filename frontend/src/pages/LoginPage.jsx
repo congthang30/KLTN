@@ -401,7 +401,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   className="login-link"
-                  onClick={() => alert(t('login.forgotPasswordMsg'))}
+                  onClick={() => navigate('/forgot-password')}
                   style={{ border: 'none', background: 'none', padding: 0 }}
                 >
                   {t('login.forgotPassword')}
@@ -470,6 +470,17 @@ export default function LoginPage() {
                       style={{ border: 'none', background: 'none', padding: 0 }}
                     >
                       {lang === 'vi' ? 'Bạn chưa kích hoạt? Nhập mã mời' : 'Not registered? Enter invite code'}
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 14 }}>
+                    <button
+                      type="button"
+                      className="login-link"
+                      onClick={() => navigate('/recovery')}
+                      style={{ border: 'none', background: 'none', padding: 0, color: '#ef4444', fontSize: '0.85rem', fontWeight: 600 }}
+                    >
+                      {lang === 'vi' ? '⚠️ Mất ví Admin? Khôi phục tại đây' : '⚠️ Lost Admin wallet? Recover here'}
                     </button>
                   </div>
                 </div>

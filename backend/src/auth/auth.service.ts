@@ -415,6 +415,142 @@ export class AuthService {
   }
 
   // ============================================================
+  // SHARED: Wallet Recovery initialization (Public)
+  // ============================================================
+  async recoverInit(embedding: number[]) {
+    // Fetch all admins with a registered face embedding
+    const admins = await this.prisma.user.findMany({
+      where: {
+        role: 'ADMIN',
+        adminProfile: {
+          faceEmbedding: { not: null },
+        },
+      },
+      include: { adminProfile: true },
+    });
+
+    let matchedUser = null;
+    let highestSimilarity = 0;
+
+    for (const user of admins) {
+      if (!user.adminProfile?.faceEmbedding) continue;
+      try {
+        const stored: number[] = JSON.parse(user.adminProfile.faceEmbedding);
+        const similarity = this.cosineSimilarity(embedding, stored);
+        if (similarity > highestSimilarity) {
+          highestSimilarity = similarity;
+          matchedUser = user;
+        }
+      } catch (err) {
+        // Skip malformed profiles
+      }
+    }
+
+    // Check strict threshold
+    if (!matchedUser || highestSimilarity < 0.92) {
+      throw new UnauthorizedException(
+        'Không nhận diện được khuôn mặt Admin phù hợp trong cơ sở dữ liệu.'
+      );
+    }
+
+    // Issue temporary token for ZKP recovery page
+    const payload = {
+      sub: matchedUser.id,
+      username: matchedUser.username,
+      role: matchedUser.role,
+      verified: false,
+      isRecovery: true,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: matchedUser.id,
+        username: matchedUser.username,
+        role: matchedUser.role,
+      }
+    };
+  }
+
+  // ============================================================
+  // DOCTOR: Password Recovery initialization (Public)
+  // ============================================================
+  async doctorRecoverInit(embedding: number[]) {
+    // Fetch all doctors with a registered face embedding
+    const doctors = await this.prisma.user.findMany({
+      where: {
+        role: 'DOCTOR',
+        doctorProfile: {
+          faceEmbedding: { not: null },
+        },
+      },
+      include: { doctorProfile: true },
+    });
+
+    let matchedUser = null;
+    let highestSimilarity = 0;
+
+    for (const user of doctors) {
+      if (!user.doctorProfile?.faceEmbedding) continue;
+      try {
+        const stored: number[] = JSON.parse(user.doctorProfile.faceEmbedding);
+        const similarity = this.cosineSimilarity(embedding, stored);
+        if (similarity > highestSimilarity) {
+          highestSimilarity = similarity;
+          matchedUser = user;
+        }
+      } catch (err) {
+        // Skip malformed profiles
+      }
+    }
+
+    // Check strict threshold
+    if (!matchedUser || highestSimilarity < 0.92) {
+      throw new UnauthorizedException(
+        'Không nhận diện được khuôn mặt Bác sĩ phù hợp trong cơ sở dữ liệu.'
+      );
+    }
+
+    // Issue temporary token for password reset
+    const payload = {
+      sub: matchedUser.id,
+      username: matchedUser.username,
+      role: matchedUser.role,
+      verified: false,
+      canResetPassword: true,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: matchedUser.id,
+        username: matchedUser.username,
+        role: matchedUser.role,
+      }
+    };
+  }
+
+  // ============================================================
+  // DOCTOR: Reset Password (JWT protected)
+  // ============================================================
+  async resetPassword(userId: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashed, firstLogin: false }, // Resetting password counts as setting up password, make firstLogin false just in case
+    });
+
+    return { message: 'Mật khẩu đã được cập nhật thành công.' };
+  }
+
+  // ============================================================
   // Private helpers
   // ============================================================
   private cosineSimilarity(a: number[], b: number[]): number {
