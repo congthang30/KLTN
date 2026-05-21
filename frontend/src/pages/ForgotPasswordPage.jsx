@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { useThemeLang } from '../contexts/ThemeLangContext';
 import FaceCapture from '../components/FaceCapture';
 import { authService } from '../services/authService';
 
 export default function ForgotPasswordPage() {
-  const { updateToken } = useAuth();
+  const navigate = useNavigate();
   const { theme, toggleTheme, lang, toggleLang } = useThemeLang();
   
   const [step, setStep] = useState(1);
@@ -13,6 +13,11 @@ export default function ForgotPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
+
+  const handleBackToLogin = () => {
+    localStorage.removeItem('recovery_token');
+    navigate('/login');
+  };
 
   const handleFaceVerify = async (embedding) => {
     setLoading(true);
@@ -22,8 +27,8 @@ export default function ForgotPasswordPage() {
       const resInit = await authService.doctorRecoverInit(embedding);
       const { access_token, user } = resInit.data;
       
-      // Save temporary token in context so subsequent API requests have Authorization header
-      updateToken(access_token, user);
+      // Save temporary token in localStorage so subsequent API requests have Authorization header
+      localStorage.setItem('recovery_token', access_token);
       
       setStatus(lang === 'vi' ? `Nhận diện thành công Bác sĩ: ${user.username}. Đang chuyển tiếp...` : `Identified Doctor: ${user.username}. Advancing...`);
       setStep(2);
@@ -68,7 +73,7 @@ export default function ForgotPasswordPage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header Bar */}
       <header className="recovery-header">
-        <a href="/login" className="recovery-logo">
+        <a href="/login" onClick={(e) => { e.preventDefault(); handleBackToLogin(); }} className="recovery-logo">
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>security</span>
           ZKP Identity System
         </a>
@@ -88,7 +93,7 @@ export default function ForgotPasswordPage() {
       <main className="recovery-container">
         {/* Back Link */}
         <div style={{ marginBottom: 24 }}>
-          <a href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--primary)', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}>
+          <a href="/login" onClick={(e) => { e.preventDefault(); handleBackToLogin(); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--primary)', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
             {lang === 'vi' ? 'Quay lại trang đăng nhập' : 'Back to login page'}
           </a>
@@ -226,9 +231,9 @@ export default function ForgotPasswordPage() {
                   : 'Your new password has been updated successfully. Please use this password to log into your account.'
                 }
               </p>
-              <a href="/login" className="btn btn-primary btn-lg" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 32px', fontWeight: 600 }}>
+              <button onClick={handleBackToLogin} className="btn btn-primary btn-lg" style={{ border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 32px', fontWeight: 600 }}>
                 {lang === 'vi' ? 'Quay lại trang Đăng nhập' : 'Return to Login page'}
-              </a>
+              </button>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../contexts/WalletContext';
-import { useAuth } from '../contexts/AuthContext';
 import { useThemeLang } from '../contexts/ThemeLangContext';
 import FaceCapture from '../components/FaceCapture';
 import WalletConnect from '../components/WalletConnect';
@@ -9,7 +9,7 @@ import { authService } from '../services/authService';
 
 export default function RecoveryPage() {
   const { recoverWallet, address } = useWallet();
-  const { updateToken } = useAuth();
+  const navigate = useNavigate();
   const { theme, toggleTheme, lang, toggleLang } = useThemeLang();
   
   const [step, setStep] = useState(1);
@@ -17,6 +17,11 @@ export default function RecoveryPage() {
   const [recoveryData, setRecoveryData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
+
+  const handleBackToLogin = () => {
+    localStorage.removeItem('recovery_token');
+    navigate('/login');
+  };
 
   const handleFaceVerify = async (embedding) => {
     setLoading(true);
@@ -26,8 +31,8 @@ export default function RecoveryPage() {
       const resInit = await authService.recoverInit(embedding);
       const { access_token, user } = resInit.data;
       
-      // Save temporary token in context so subsequent API requests have Authorization header
-      updateToken(access_token, user);
+      // Save temporary token in localStorage so subsequent API requests have Authorization header
+      localStorage.setItem('recovery_token', access_token);
       
       // 2. Fetch ZKP commitment & faceHash using the temporary token
       setStatus(lang === 'vi' ? `Nhận diện thành công Admin: ${user.username}. Đang tải khóa căn tính ZKP...` : `Identified Admin: ${user.username}. Loading ZKP identity...`);
@@ -101,7 +106,7 @@ export default function RecoveryPage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Header Bar */}
       <header className="recovery-header">
-        <a href="/login" className="recovery-logo">
+        <a href="/login" onClick={(e) => { e.preventDefault(); handleBackToLogin(); }} className="recovery-logo">
           <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>security</span>
           ZKP Identity System
         </a>
@@ -121,7 +126,7 @@ export default function RecoveryPage() {
       <main className="recovery-container">
         {/* Back Link */}
         <div style={{ marginBottom: 24 }}>
-          <a href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--primary)', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}>
+          <a href="/login" onClick={(e) => { e.preventDefault(); handleBackToLogin(); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--primary)', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}>
             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
             {lang === 'vi' ? 'Quay lại trang đăng nhập' : 'Back to login page'}
           </a>
@@ -251,9 +256,9 @@ export default function RecoveryPage() {
                   : 'Your new wallet address has been updated successfully on the Smart Contract and system database.'
                 }
               </p>
-              <a href="/login" className="btn btn-primary btn-lg" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 32px', fontWeight: 600 }}>
+              <button onClick={handleBackToLogin} className="btn btn-primary btn-lg" style={{ border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 32px', fontWeight: 600 }}>
                 {lang === 'vi' ? 'Quay lại trang Đăng nhập' : 'Return to Login page'}
-              </a>
+              </button>
             </div>
           )}
         </div>
