@@ -12,11 +12,12 @@ export default function RecoveryPage() {
   const navigate = useNavigate();
   const { theme, toggleTheme, lang, toggleLang } = useThemeLang();
   
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(2); // Giữ nguyên logic của bạn
   const [secret, setSecret] = useState('');
   const [recoveryData, setRecoveryData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
+  const [isError, setIsError] = useState(false);
 
   const handleBackToLogin = async () => {
     try {
@@ -30,16 +31,14 @@ export default function RecoveryPage() {
 
   const handleFaceVerify = async (embedding) => {
     setLoading(true);
-    setStatus(lang === 'vi' ? 'Đang quét khuôn mặt & tìm kiếm tài khoản Admin...' : 'Scanning face & finding Admin account...');
+    setIsError(false);
+    setStatus(lang === 'vi' ? 'Đang quét khuôn mặt và tìm kiếm tài khoản Admin...' : 'Scanning face and finding Admin account...');
     try {
-      // 1. Verify Face against all admins to identify and get temporary token
       const resInit = await authService.recoverInit(embedding);
       const { access_token, user } = resInit.data;
       
-      // Save temporary token in localStorage so subsequent API requests have Authorization header
       localStorage.setItem('recovery_token', access_token);
       
-      // 2. Fetch ZKP commitment & faceHash using the temporary token
       setStatus(lang === 'vi' ? `Nhận diện thành công Admin: ${user.username}. Đang tải khóa căn tính ZKP...` : `Identified Admin: ${user.username}. Loading ZKP identity...`);
       const resData = await zkpService.getRecoveryData();
       if (!resData.data.commitment) {
@@ -50,7 +49,8 @@ export default function RecoveryPage() {
       setStep(2);
       setStatus('');
     } catch (err) {
-      setStatus('❌ ' + (err.response?.data?.message || err.message));
+      setIsError(true);
+      setStatus(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
     }
@@ -58,7 +58,6 @@ export default function RecoveryPage() {
 
   const generateProof = async () => {
     try {
-      // Dummy proof for MockVerifier in prototype smart contract
       return {
         pA: ["0", "0"],
         pB: [["0", "0"], ["0", "0"]],
@@ -71,218 +70,304 @@ export default function RecoveryPage() {
 
   const handleRecover = async () => {
     if (!address) {
-      setStatus(lang === 'vi' ? '❌ Vui lòng kết nối VÍ MỚI trước' : '❌ Please connect your NEW wallet first');
+      setIsError(true);
+      setStatus(lang === 'vi' ? 'Vui lòng kết nối ví mới để tiếp tục' : 'Please connect your new wallet to continue');
       return;
     }
     if (!secret) {
-      setStatus(lang === 'vi' ? '❌ Vui lòng nhập mã khôi phục ZKP (MFA Secret)' : '❌ Please enter ZKP recovery code (MFA Secret)');
+      setIsError(true);
+      setStatus(lang === 'vi' ? 'Vui lòng nhập mã khôi phục ZKP (MFA Secret)' : 'Please enter ZKP recovery code (MFA Secret)');
       return;
     }
 
     setLoading(true);
+    setIsError(false);
     setStatus(lang === 'vi' ? 'Đang tạo bằng chứng Zero-Knowledge Proof bảo mật...' : 'Generating secure Zero-Knowledge Proof...');
 
     try {
-      // 1. Generate Proof
       const proof = await generateProof();
-
       setStatus(lang === 'vi' ? 'Đang gửi bằng chứng xác minh lên Blockchain...' : 'Submitting verification proof to Blockchain...');
-      // 2. Submit to smart contract
-      await recoverWallet(
-        proof.pA, proof.pB, proof.pC, 
-        recoveryData.commitment, 
-        address
-      );
-
+      await recoverWallet(proof.pA, proof.pB, proof.pC, recoveryData.commitment, address);
       setStatus(lang === 'vi' ? 'Cập nhật địa chỉ ví mới trên cơ sở dữ liệu...' : 'Updating new wallet address in database...');
-      // 3. Update database
       await zkpService.updateWallet(address);
-
-      setStatus(lang === 'vi' ? '✅ Khôi phục ví thành công!' : '✅ Wallet recovered successfully!');
       setStep(3);
+      setStatus('');
     } catch (err) {
-      setStatus('❌ ' + (err.shortMessage || err.message));
+      setIsError(true);
+      setStatus(err.shortMessage || err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const isDark = theme === 'dark';
+
+  const cssVars = {
+    '--bg-color': isDark ? '#0b0f19' : '#f8fafc',
+    '--card-bg': isDark ? 'rgba(17, 24, 39, 0.75)' : 'rgba(255, 255, 255, 0.85)',
+    '--card-border': isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(15, 23, 42, 0.08)',
+    '--text-main': isDark ? '#f3f4f6' : '#0f172a',
+    '--text-muted': isDark ? '#9ca3af' : '#64748b',
+    '--input-bg': isDark ? '#111827' : '#ffffff',
+    '--input-border': isDark ? '#374151' : '#e2e8f0',
+    '--primary-adm': '#2563eb',
+    '--primary-adm-hover': '#1d4ed8',
+    '--error': '#ef4444',
+    '--success': '#10b981',
+    '--primary-color-rgb': '37, 99, 235',
+    '--success-color-rgb': '16, 185, 129',
+    '--error-color-rgb': '239, 68, 68'
+  };
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header Bar */}
-      <header className="recovery-header">
-        <a href="/login" onClick={(e) => { e.preventDefault(); handleBackToLogin(); }} className="recovery-logo">
-          <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>security</span>
-          ZKP Identity System
-        </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="recovery-nav-btn" onClick={toggleLang} title={lang === 'vi' ? 'Chuyển sang Tiếng Anh' : 'Switch to Vietnamese'}>
-            <span className="material-symbols-outlined">language</span>
-          </button>
-          <button className="recovery-nav-btn" onClick={toggleTheme} title={theme === 'dark' ? 'Chuyển sang Chế độ sáng' : 'Switch to Dark mode'}>
-            <span className="material-symbols-outlined">
-              {theme === 'dark' ? 'light_mode' : 'dark_mode'}
-            </span>
-          </button>
-        </div>
-      </header>
+    <div className="zkp-mvp-wrapper" style={cssVars}>
+      <style>{`
+        .zkp-mvp-wrapper {
+          min-height: 100vh; width: 100%; display: flex; flex-direction: column;
+          background-color: var(--bg-color); color: var(--text-main);
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          transition: background-color 0.4s ease; position: relative; overflow-x: hidden;
+        }
+        
+        .ambient-glow {
+          position: fixed; top: -15%; left: 50%; transform: translateX(-50%);
+          width: 85vw; height: 55vh;
+          background: radial-gradient(circle, rgba(var(--primary-color-rgb), 0.08) 0%, transparent 70%);
+          filter: blur(90px); z-index: 0; pointer-events: none;
+        }
 
-      {/* Main Body */}
-      <main className="recovery-container">
-        {/* Back Link */}
-        <div style={{ marginBottom: 24 }}>
-          <a href="/login" onClick={(e) => { e.preventDefault(); handleBackToLogin(); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--primary)', textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
-            {lang === 'vi' ? 'Quay lại trang đăng nhập' : 'Back to login page'}
-          </a>
-        </div>
+        .main-container {
+          position: relative; z-index: 5; flex: 1; display: flex;
+          flex-direction: column; align-items: center; justify-content: center;
+          padding: 60px 24px;
+        }
 
-        {/* Title Block */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '36px', fontVariationSettings: "'FILL' 1" }}>key</span>
-            {lang === 'vi' ? 'Khôi phục Ví Admin (ZKP Recovery)' : 'Recover Admin Wallet (ZKP Recovery)'}
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: 600, margin: '0 auto', fontSize: '0.95rem', lineHeight: 1.6 }}>
-            {lang === 'vi' 
-              ? 'Bị mất ví hoặc đổi ví mới? Chứng minh quyền sở hữu tài khoản của bạn thông qua nhận diện khuôn mặt và mã bảo mật ZKP để liên kết với địa chỉ ví mới.'
-              : 'Lost your wallet or changing keys? Verify ownership via facial recognition and ZKP security code to associate your new wallet address.'
-            }
-          </p>
-        </div>
+        .page-title {
+          font-size: 2rem; font-weight: 700; letter-spacing: -0.03em;
+          margin-bottom: 12px; text-align: center; color: var(--text-main);
+        }
 
-        {/* Progress indicators */}
-        <div className="step-indicator-bar">
-          {[1, 2, 3].map(num => (
-            <div key={num} className={`step-indicator-segment ${step >= num ? 'active' : ''}`} />
-          ))}
-        </div>
+        .page-subtitle {
+          color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;
+          max-width: 520px; text-align: center; margin-bottom: 40px;
+        }
 
-        {/* Steps */}
-        <div className="recovery-card">
-          {step === 1 && (
-            <>
-              <div className="recovery-card-header">
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {lang === 'vi' ? 'Bước 1: Xác thực khuôn mặt Admin' : 'Step 1: Admin Face Verification'}
+        /* --- Nâng cấp Thẻ Glassmorphism siêu mịn --- */
+        .saas-glass-card {
+          width: 100%; max-width: 520px;
+          background: var(--card-bg);
+          backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+          border: 1px solid var(--card-border); border-radius: 24px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04), 0 20px 60px rgba(0, 0, 0, 0.06);
+          overflow: hidden;
+        }
+
+        .stepper-ui { display: flex; padding: 36px 36px 0; gap: 8px; }
+        .step-bar { flex: 1; height: 4px; border-radius: 9999px; background: var(--input-border); transition: all 0.4s ease; }
+        .step-bar.active { background: var(--primary-adm); }
+
+        .card-content { padding: 36px; }
+        
+        .step-heading { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+        .step-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 32px; line-height: 1.5; }
+
+        .form-group { margin-bottom: 24px; }
+        
+        .saas-label {
+          display: block; font-size: 0.75rem; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.05em;
+          color: var(--text-muted); margin-bottom: 10px;
+        }
+
+        .wallet-connect-wrapper {
+          width: 100%;
+        }
+
+        .wallet-connect-wrapper > div {
+          width: 100%;
+        }
+
+        /* Scope style only to wallet CTA buttons, not the small disconnect icon. */
+        .wallet-connect-wrapper .action-button-core {
+          width: 100% !important;
+          height: 48px !important;
+          background: var(--input-bg) !important;
+          color: var(--text-main) !important;
+          border: 1px solid var(--input-border) !important;
+          border-radius: 12px !important;
+          font-size: 0.9rem !important;
+          font-weight: 600 !important;
+          cursor: pointer !important;
+          display: flex !important; align-items: center !important; justify-content: center !important;
+          gap: 8px !important;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.02) !important;
+          transition: all 0.2s ease !important;
+          outline: none !important;
+          text-shadow: none !important;
+        }
+        .wallet-connect-wrapper .action-button-core:hover {
+          background: var(--input-border) !important;
+          border-color: var(--text-muted) !important;
+        }
+
+        .wallet-connect-wrapper .disconnect-icon-btn {
+          width: 28px !important;
+          height: 28px !important;
+          min-width: 28px !important;
+          padding: 0 !important;
+          border-radius: 6px !important;
+          background: transparent !important;
+          border: 1px solid rgba(var(--error-color-rgb), 0.15) !important;
+          color: var(--error) !important;
+          box-shadow: none !important;
+        }
+
+        .wallet-connect-wrapper .disconnect-icon-btn:hover {
+          background: rgba(var(--error-color-rgb), 0.08) !important;
+          border-color: rgba(var(--error-color-rgb), 0.25) !important;
+        }
+
+        /* --- Input fields mượt mà hơn --- */
+        .saas-input {
+          width: 100%; height: 48px; padding: 0 16px;
+          background: var(--input-bg); border: 1px solid var(--input-border);
+          border-radius: 12px; color: var(--text-main); font-size: 0.95rem;
+          outline: none; transition: all 0.2s ease; box-sizing: border-box;
+        }
+        .saas-input:focus {
+          border-color: var(--primary-adm);
+          box-shadow: 0 0 0 4px rgba(var(--primary-color-rgb), 0.1);
+        }
+
+        /* --- Nút Submit Đồng bộ viên thuốc của Apple --- */
+        .saas-btn {
+          width: 100%; height: 48px; background: var(--primary-adm);
+          color: #fff; border: none; border-radius: 12px;
+          font-size: 0.95rem; font-weight: 600; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: all 0.2s ease; margin-top: 36px;
+        }
+        .saas-btn:hover:not(:disabled) {
+          background: var(--primary-adm-hover);
+          box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.2);
+        }
+        .saas-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .camera-wrapper { border: 1px solid var(--input-border); border-radius: 16px; background: var(--input-bg); padding: 12px; }
+
+        .alert-box { margin-top: 24px; padding: 14px 16px; border-radius: 12px; font-size: 0.85rem; font-weight: 500; }
+        .alert-box.error { background: rgba(var(--error-color-rgb), 0.05); border: 1px solid rgba(var(--error-color-rgb), 0.15); color: var(--error); }
+        .alert-box.info { background: rgba(var(--primary-color-rgb), 0.05); border: 1px solid rgba(var(--primary-color-rgb), 0.15); color: var(--primary-adm); }
+
+        .success-icon-wrapper { width: 52px; height: 52px; background: rgba(var(--success-color-rgb), 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: var(--success); }
+        .success-text { font-size: 1.4rem; font-weight: 700; color: var(--success); margin-bottom: 8px; }
+
+        @media (max-width: 640px) {
+          .main-container { padding: 32px 16px; }
+          .page-title { font-size: 1.6rem; }
+          .saas-glass-card { border-radius: 20px; }
+          .card-content { padding: 24px; }
+        }
+      `}</style>
+
+      <div className="ambient-glow"></div>
+
+      <main className="main-container">
+        <h1 className="page-title">
+          {lang === 'vi' ? 'Khôi phục tài khoản Admin' : 'Admin Account Recovery'}
+        </h1>
+        <p className="page-subtitle">
+          {lang === 'vi' 
+            ? 'Xác thực sinh trắc học kết hợp bằng chứng Zero-Knowledge Proof để tái thiết lập địa chỉ ví Web3 an toàn.'
+            : 'Authenticate via biometrics and Zero-Knowledge proofs to securely re-establish your Web3 wallet node.'}
+        </p>
+
+        <div className="saas-glass-card">
+          <div className="stepper-ui">
+            <div className={`step-bar ${step >= 1 ? 'active' : ''}`} />
+            <div className={`step-bar ${step >= 2 ? 'active' : ''}`} />
+            <div className={`step-bar ${step >= 3 ? 'active' : ''}`} />
+          </div>
+
+          <div className="card-content">
+            {step === 1 && (
+              <div>
+                <h2 className="step-heading">{lang === 'vi' ? '1. Xác thực sinh trắc học' : '1. Biometric Verification'}</h2>
+                <p className="step-desc">{lang === 'vi' ? 'Hệ thống cần xác minh liveness để đối chiếu căn tính gốc.' : 'Liveness check required.'}</p>
+                <div className="camera-wrapper">
+                  <FaceCapture onCapture={handleFaceVerify} autoStart={true} requireLiveness={true} />
+                </div>
+              </div>
+            )}
+
+            {/* BƯỚC 2 ĐÃ ĐƯỢC FIX LỖI TRANH CHẤP CSS NÚT VÍ */}
+            {step === 2 && (
+              <div>
+                <h2 className="step-heading">
+                  {lang === 'vi' ? '2. Ánh xạ địa chỉ & Mã ZKP' : '2. Node Mapping & ZKP Key'}
                 </h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 6, lineHeight: 1.5 }}>
+                <p className="step-desc">
                   {lang === 'vi'
-                    ? 'Nhìn thẳng và làm theo thử thách trên camera dưới đây để kiểm tra thực thể sống (Liveness Check). Hệ thống sẽ tự động tìm kiếm và đối khớp khuôn mặt của bạn trên cơ sở dữ liệu Admin.'
-                    : 'Look straight and follow the face movement instructions on screen for liveness verification. The system will automatically search and match your face with the Admin database.'
-                  }
+                    ? 'Ký xác thực địa chỉ ví mới và nhập chuỗi khóa mật mã bí mật để cấp quyền.'
+                    : 'Sign the new wallet address and provide your master cryptographic secret.'}
                 </p>
-              </div>
-              <div className="recovery-card-body" style={{ background: 'var(--bg-elevated)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '32px 16px' }}>
-                <FaceCapture onCapture={handleFaceVerify} autoStart={true} requireLiveness={true} />
-                
-                {status && (
-                  <p style={{ 
-                    marginTop: 20, 
-                    color: status.includes('❌') ? 'var(--danger)' : 'var(--primary)', 
-                    textAlign: 'center', 
-                    fontWeight: 600,
-                    fontSize: '0.95rem'
-                  }}>
-                    {status}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
 
-          {step === 2 && (
-            <>
-              <div className="recovery-card-header">
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {lang === 'vi' ? 'Bước 2: Cấp ví mới & Mã bảo mật ZKP' : 'Step 2: Connect New Wallet & ZKP Secret'}
-                </h2>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: 6, lineHeight: 1.5 }}>
-                  {lang === 'vi'
-                    ? 'Kết nối địa chỉ ví MetaMask mới và cung cấp mã bảo mật ZKP (MFA Secret) đã được cấp khi bạn kích hoạt tài khoản để tiến hành đổi khóa trên Hợp đồng thông minh.'
-                    : 'Connect your new MetaMask wallet and supply the ZKP security code (MFA Secret) issued during account activation to rewrite the address on Smart Contract.'
-                  }
-                </p>
-              </div>
-              <div className="recovery-card-body" style={{ padding: 32 }}>
-                <div className="form-group" style={{ marginBottom: 24 }}>
-                  <label className="form-label" style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>
-                    {lang === 'vi' ? '1. Kết nối địa chỉ VÍ METAMASK MỚI' : '1. Connect NEW METAMASK Wallet'}
+                <div className="form-group">
+                  <label className="saas-label">
+                    {lang === 'vi' ? 'A. Địa chỉ ví thay thế (Target Wallet)' : 'A. Target Wallet Node'}
                   </label>
-                  <div style={{ marginTop: 8 }}>
+                  {/* Bao bọc component để các thuộc tính đè CSS phía trên hoạt động chuẩn xác */}
+                  <div className="wallet-connect-wrapper">
                     <WalletConnect />
                   </div>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: 24 }}>
-                  <label className="form-label" style={{ fontWeight: 600, marginBottom: 8, display: 'block' }}>
-                    {lang === 'vi' ? '2. Mã bảo mật ZKP (MFA Secret Key)' : '2. ZKP Security Code (MFA Secret Key)'}
+                <div className="form-group">
+                  <label className="saas-label">
+                    {lang === 'vi' ? 'B. Cụm khóa bí mật (MFA Secret)' : 'B. Master Identity Key (MFA Secret)'}
                   </label>
                   <input 
-                    className="form-input" 
-                    type="text" 
-                    placeholder={lang === 'vi' ? "Nhập mã bảo mật dạng cụm từ hoặc Hex" : "Enter phrase or hex security key"}
+                    className="saas-input" 
+                    type="password" 
                     value={secret}
                     onChange={e => setSecret(e.target.value)}
-                    style={{ fontFamily: 'monospace', letterSpacing: '0.05em' }}
+                    placeholder={lang === 'vi' ? "Nhập mã ZKP khôi phục..." : "Enter recovery key..."}
+                    style={{ fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}
                   />
                 </div>
 
                 {status && (
-                  <div className={`alert ${status.includes('❌') ? 'alert-error' : 'alert-info'}`} style={{ marginTop: 24, padding: '12px 16px', borderRadius: 8, fontSize: '0.9rem', fontWeight: 500 }}>
+                  <div className={`alert-box ${isError ? 'error' : 'info'}`}>
                     {status}
                   </div>
                 )}
 
-                <button 
-                  className="btn btn-primary btn-lg btn-full" 
-                  style={{ marginTop: 24, fontWeight: 700, height: 48, fontSize: '1rem', background: 'var(--primary)', color: '#fff' }}
-                  onClick={handleRecover}
-                  disabled={loading}
-                >
+                <button className="saas-btn" onClick={handleRecover} disabled={loading}>
                   {loading 
-                    ? (lang === 'vi' ? 'Đang thực hiện khôi phục...' : 'Processing recovery...')
-                    : (lang === 'vi' ? '🛡️ Tạo Bằng Chứng ZKP & Khôi Phục Ví' : '🛡️ Generate ZKP Proof & Recover Wallet')
+                    ? (lang === 'vi' ? 'Đang khởi tạo Proof...' : 'Synthesizing Proof...')
+                    : (lang === 'vi' ? 'Xác minh & Đồng bộ ví' : 'Verify & Remap Node')
                   }
                 </button>
               </div>
-            </>
-          )}
+            )}
 
-          {step === 3 && (
-            <div className="recovery-card-body" style={{ padding: '48px 32px', textAlign: 'center' }}>
-              <div style={{ fontSize: 64, marginBottom: 16 }}>✅</div>
-              <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: 12, color: 'var(--success)' }}>
-                {lang === 'vi' ? 'Khôi phục tài khoản thành công!' : 'Account Recovered Successfully!'}
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: 32, fontSize: '0.95rem', lineHeight: 1.6, maxWidth: 500, margin: '0 auto 32px' }}>
-                {lang === 'vi'
-                  ? 'Địa chỉ ví mới của bạn đã được cập nhật thành công trên Smart Contract và cơ sở dữ liệu hệ thống.'
-                  : 'Your new wallet address has been updated successfully on the Smart Contract and system database.'
-                }
-              </p>
-              <button onClick={handleBackToLogin} className="btn btn-primary btn-lg" style={{ border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 32px', fontWeight: 600 }}>
-                {lang === 'vi' ? 'Quay lại trang Đăng nhập' : 'Return to Login page'}
-              </button>
-            </div>
-          )}
+            {step === 3 && (
+              <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                <div className="success-icon-wrapper">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <h2 className="success-text">{lang === 'vi' ? 'Cập nhật thành công' : 'Node Re-mapped'}</h2>
+                <p className="step-desc">{lang === 'vi' ? 'Quyền quản trị đã chuyển về ví mới.' : 'State has been remapped.'}</p>
+                <button onClick={handleBackToLogin} className="saas-btn" style={{ maxWidth: 220, margin: '0 auto' }}>
+                  {lang === 'vi' ? 'Quay lại đăng nhập' : 'Return to Login'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="recovery-footer">
-        <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--primary)', marginBottom: 8 }}>
-          ZKP Identity System
-        </div>
-        <div className="recovery-footer-links">
-          <a href="#" className="recovery-footer-link">Security Policy</a>
-          <a href="#" className="recovery-footer-link">Terms of Service</a>
-          <a href="#" className="recovery-footer-link">Help Center</a>
-        </div>
-        <div style={{ color: 'var(--text-secondary)', marginTop: 8 }}>
-          © 2026 Powered by ZKP + Blockchain
-        </div>
-      </footer>
     </div>
   );
 }

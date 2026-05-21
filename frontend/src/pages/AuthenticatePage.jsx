@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useWallet } from '../contexts/WalletContext';
+import { useThemeLang } from '../contexts/ThemeLangContext';
 import WalletConnect from '../components/WalletConnect';
 import FaceCapture from '../components/FaceCapture';
 import { authService } from '../services/authService';
@@ -10,11 +11,10 @@ export default function AuthenticatePage() {
   const { user, token, updateToken } = useAuth();
   const { address, connectMock, disconnect } = useWallet();
   const navigate = useNavigate();
+  const { theme, toggleTheme, lang, toggleLang } = useThemeLang();
 
   const isAdmin = user?.role === 'ADMIN';
 
-  // Admin: wallet already verified at login (Flow B), only need face scan
-  // Doctor: need both wallet verify + face scan
   const [walletVerified, setWalletVerified] = useState(isAdmin ? true : false);
   const [verifiedWalletAddress, setVerifiedWalletAddress] = useState(
     isAdmin ? (user?.walletAddress || '') : ''
@@ -31,9 +31,6 @@ export default function AuthenticatePage() {
     }
   }, [user, navigate]);
 
-  // ============================================================
-  // DOCTOR ONLY: Wallet verification (Admin skips this - already done at login)
-  // ============================================================
   const handleWalletVerify = async (addr, isMockSelection = false) => {
     setLoading(true);
     setStatus('');
@@ -42,51 +39,46 @@ export default function AuthenticatePage() {
         connectMock(addr);
         setWalletVerified(true);
         setVerifiedWalletAddress(addr);
-        setStatus('Step 1 complete (Mock Wallet): Wallet verified! Proceed to Face scan.');
+        setStatus('Xác thực thành công (Mock Wallet). Hãy tiến hành quét khuôn mặt.');
         return;
       }
 
-      setStatus('Signing verification message...');
+      setStatus('Đang ký tin nhắn xác thực...');
       const message = `ZKP Identity Verification\nTimestamp: ${Date.now()}\nAddress: ${addr}`;
 
       const provider = new (await import('ethers')).BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const signature = await signer.signMessage(message);
 
-      setStatus('Verifying wallet...');
+      setStatus('Đang xác minh ví trên hệ thống...');
       const res = await authService.verifyWallet(addr, signature, message);
 
       if (res.data.verified) {
         setWalletVerified(true);
         setVerifiedWalletAddress(addr);
-        setStatus('Step 1 complete: Wallet verified! Please proceed to Face scan.');
+        setStatus('Xác thực ví thành công. Vui lòng thực hiện quét khuôn mặt.');
       }
     } catch (err) {
-      setStatus('Wallet verification failed: ' + (err.message || 'Unknown error'));
+      setStatus('Xác thực ví thất bại: ' + (err.message || 'Lỗi không xác định'));
     } finally {
       setLoading(false);
     }
   };
 
-  // ============================================================
-  // SHARED: Face verification (Layer 2 for both Admin and Doctor)
-  // ============================================================
   const handleFaceVerify = async (embedding) => {
     setLoading(true);
-    setStatus('Verifying face...');
+    setStatus('Đang đối khớp dữ liệu sinh học khuôn mặt...');
     try {
       const res = await authService.verifyFace(embedding);
       if (res.data.verified) {
-        setStatus(`Xác thực thành công! (similarity: ${(res.data.similarity * 100).toFixed(1)}%)`);
-
+        setStatus(`Xác thực thành công. Độ tương đồng: ${(res.data.similarity * 100).toFixed(1)}%`);
         updateToken(res.data.access_token, { verified: true });
-
         setTimeout(() => {
           navigate('/dashboard');
         }, 1500);
       }
     } catch (err) {
-      setStatus('Face verification failed: ' + (err.response?.data?.message || err.message));
+      setStatus('Xác thực khuôn mặt thất bại: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -100,167 +92,248 @@ export default function AuthenticatePage() {
     setStatus('');
   };
 
+  const isDark = theme === 'dark';
+
+  const cssVars = {
+    '--bg-color': isDark ? '#070a13' : '#f8fafc',
+    '--card-bg': isDark ? 'rgba(15, 23, 42, 0.65)' : 'rgba(255, 255, 255, 0.85)',
+    '--card-border': isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(15, 23, 42, 0.08)',
+    '--text-main': isDark ? '#f8fafc' : '#0f172a',
+    '--text-muted': isDark ? '#94a3b8' : '#64748b',
+    '--primary-auth': '#6366f1',
+    '--primary-hover': '#4f46e5',
+    '--input-bg': isDark ? '#0f172a' : '#ffffff',
+    '--input-border': isDark ? '#1e293b' : '#cbd5e1',
+    '--success': '#10b981',
+    '--danger': '#ef4444',
+    '--warning': '#f59e0b',
+    '--auth-rgb': '99, 102, 241'
+  };
+
   return (
-    <div className="container fade-in" style={{ padding: '40px 24px', maxWidth: 700 }}>
-      <div className="card" style={{
-        padding: 32,
-        borderColor: 'var(--accent)',
-        background: 'rgba(99, 102, 241, 0.02)',
-        borderRadius: 'var(--radius-lg)'
-      }}>
-        <h1 style={{ marginBottom: 12, color: 'var(--accent)', fontSize: '1.6rem', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-          {isAdmin ? 'Admin Biometric Verification' : 'Dual-Factor Security Authentication'}
+    <div className="auth-premium-wrapper" style={cssVars}>
+      <style>{`
+        .auth-premium-wrapper {
+          min-height: calc(100vh - 64px); width: 100%; display: flex; flex-direction: column;
+          align-items: center; justify-content: flex-start; background-color: var(--bg-color);
+          color: var(--text-main); padding: 48px 24px 32px; box-sizing: border-box;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          position: relative; overflow-x: hidden; transition: background-color 0.3s;
+        }
+
+        .ambient-glow-auth {
+          position: absolute; width: 680px; height: 420px; top: -12%; left: 50%;
+          transform: translateX(-50%); background: radial-gradient(circle, rgba(var(--auth-rgb), ${isDark ? '0.08' : '0.03'}), transparent 70%);
+          filter: blur(80px); pointer-events: none; z-index: 0;
+        }
+
+        .auth-page-intro {
+          position: relative; z-index: 5; width: 100%; max-width: 520px;
+          margin-bottom: 28px; text-align: center;
+        }
+
+        .auth-glass-card {
+          width: 100%; max-width: 520px; background: var(--card-bg);
+          border: 1px solid var(--card-border); border-radius: 24px;
+          backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+          box-shadow: ${isDark ? '0 24px 50px -12px rgba(0, 0, 0, 0.5)' : '0 20px 40px -12px rgba(15, 23, 42, 0.08)'};
+          overflow: hidden; z-index: 5; box-sizing: border-box;
+          animation: cardEntrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .auth-title { font-size: 1.85rem; font-weight: 700; text-align: center; margin: 0 0 10px; letter-spacing: -0.03em; }
+        .auth-subtitle { color: var(--text-muted); font-size: 0.95rem; text-align: center; margin: 0; line-height: 1.55; }
+
+        .stepper-container { display: flex; gap: 6px; padding: 28px 28px 0; }
+        .step-segment { flex: 1; height: 4px; border-radius: 9999px; background: var(--input-border); transition: all 0.4s ease; }
+        .step-segment.active { background: var(--primary-auth); box-shadow: 0 0 10px rgba(var(--auth-rgb), 0.25); }
+
+        .card-header-pane { padding: 28px 28px 16px; }
+        .card-body-pane { padding: 0 28px 28px; }
+        .step-heading { font-size: 1.2rem; font-weight: 700; margin: 0; letter-spacing: -0.02em; }
+        .step-desc { color: var(--text-muted); font-size: 0.85rem; margin: 6px 0 0; line-height: 1.45; }
+
+        /* Ép phẳng nút kết nối MetaMask bên trong WalletConnect */
+        .wallet-container-box .action-button-core {
+          width: 100% !important; height: 46px !important; background: var(--input-bg) !important;
+          color: var(--text-main) !important; border: 1px solid var(--input-border) !important;
+          border-radius: 12px !important; font-size: 0.9rem !important; font-weight: 600 !important;
+          cursor: pointer !important; transition: all 0.2s ease !important; box-shadow: none !important;
+        }
+        .wallet-container-box .action-button-core:hover { border-color: var(--primary-auth) !important; background: rgba(var(--auth-rgb), 0.05) !important; }
+
+        .wallet-container-box .disconnect-icon-btn {
+          width: 28px !important; height: 28px !important; min-width: 28px !important; padding: 0 !important;
+          background: transparent !important; border: 1px solid rgba(239, 68, 68, 0.15) !important;
+          color: var(--danger) !important; box-shadow: none !important;
+        }
+
+        .auth-select, .auth-input {
+          width: 100%; height: 44px; padding: 0 14px; background: var(--input-bg);
+          border: 1px solid var(--input-border); border-radius: 10px; color: var(--text-main);
+          font-size: 0.875rem; outline: none; transition: all 0.2s; box-sizing: border-box;
+        }
+        .auth-select:focus, .auth-input:focus { border-color: var(--primary-auth); }
+
+        .auth-label { font-size: 0.725rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 6px; }
+        .form-block { margin-bottom: 16px; }
+
+        .core-btn {
+          width: 100%; height: 44px; background: var(--primary-auth); color: #fff;
+          border: none; border-radius: 10px; font-size: 0.9rem; font-weight: 600;
+          cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center;
+        }
+        .core-btn:hover:not(:disabled) { background: var(--primary-hover); }
+        .core-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .tech-camera-frame {
+          border: 1px solid var(--input-border); border-radius: 16px; padding: 12px;
+          background: rgba(0,0,0,0.02); display: flex; justify-content: center;
+        }
+
+        .status-toast {
+          margin-top: 20px; padding: 12px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 500; line-height: 1.4;
+          background: rgba(255,255,255,0.03); border: 1px solid var(--input-border);
+        }
+        .status-toast.has-error { color: var(--danger); border-color: rgba(239, 64, 64, 0.2); background: rgba(239, 64, 64, 0.02); }
+        .status-toast.has-success { color: var(--success); border-color: rgba(16, 185, 129, 0.2); background: rgba(16, 185, 129, 0.02); }
+
+        .dev-drawer { margin-top: 28px; padding-top: 20px; border-top: 1px dashed var(--input-border); }
+        .dev-title { font-size: 0.8rem; font-weight: 700; color: rgba(var(--auth-rgb), 0.7); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+
+        .rollback-link {
+          background: none; border: none; color: var(--text-muted); font-size: 0.85rem; font-weight: 500;
+          cursor: pointer; display: inline-flex; align-items: center; margin-top: 16px; transition: color 0.2s;
+        }
+        .rollback-link:hover { color: var(--primary-auth); }
+
+        @keyframes cardEntrance { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .recovery-gate {
+          padding: 18px 28px 28px; border-top: 1px solid var(--input-border);
+          display: flex; justify-content: center;
+        }
+
+        @media (max-width: 640px) {
+          .auth-premium-wrapper { padding: 32px 16px 24px; }
+          .auth-title { font-size: 1.6rem; }
+          .card-header-pane { padding: 22px 20px 12px; }
+          .card-body-pane { padding: 0 20px 20px; }
+          .stepper-container { padding: 22px 20px 0; }
+          .recovery-gate { padding: 16px 20px 22px; }
+        }
+      `}</style>
+
+      <div className="ambient-glow-auth"></div>
+
+      <div className="auth-page-intro">
+        <h1 className="auth-title">
+          {isAdmin ? 'Xác thực Sinh trắc học Admin' : 'Xác thực Bảo mật 2 Lớp'}
         </h1>
-        <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: 32, fontSize: '0.9rem' }}>
+        <p className="auth-subtitle">
           {isAdmin
-            ? 'Ví đã được xác thực on-chain. Quét khuôn mặt để hoàn tất đăng nhập.'
-            : 'To unlock your secure dashboard, please complete both wallet and face verification.'
+            ? 'Ví đã được xác thực on-chain khi đăng nhập. Hãy quét khuôn mặt để hoàn tất.'
+            : 'Để truy cập trang quản trị hệ thống, vui lòng hoàn thành xác thực ví và trắc sinh học.'
           }
         </p>
+      </div>
 
-        {/* Stepper Progress */}
-        <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
-          <div style={{
-            flex: 1, padding: '12px 16px', borderRadius: 8,
-            background: walletVerified ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-            border: `1px solid ${walletVerified ? 'var(--success)' : 'var(--primary)'}`,
-            color: walletVerified ? 'var(--success)' : 'var(--text-primary)',
-            fontSize: '0.85rem'
-          }}>
-            <strong>1. Wallet Auth {walletVerified && '✓'}</strong>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-              {walletVerified
-                ? isAdmin
-                  ? `On-chain verified: ${verifiedWalletAddress.slice(0, 6)}...${verifiedWalletAddress.slice(-4)}`
-                  : `Address: ${verifiedWalletAddress.slice(0, 6)}...${verifiedWalletAddress.slice(-4)}`
-                : 'Connect & Sign'
-              }
-            </div>
-          </div>
-          <div style={{
-            flex: 1, padding: '12px 16px', borderRadius: 8,
-            background: !walletVerified ? 'rgba(255,255,255,0.01)' : 'rgba(255, 255, 255, 0.03)',
-            border: `1px solid ${walletVerified ? 'var(--primary)' : 'rgba(255,255,255,0.05)'}`,
-            opacity: walletVerified ? 1 : 0.5,
-            color: 'var(--text-primary)',
-            fontSize: '0.85rem'
-          }}>
-            <strong>2. Face Scan</strong>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-              Biometric check
-            </div>
-          </div>
+      <div className="auth-glass-card">
+        <div className="stepper-container">
+          <div className="step-segment active" />
+          <div className={`step-segment ${walletVerified ? 'active' : ''}`} />
         </div>
 
-        {/* Step 1: Wallet Connect (Doctor only; Admin already verified) */}
+        {/* STEP 1: WALLET SELECTION */}
         {!walletVerified ? (
-          <div style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 8, border: '1px solid var(--border)' }}>
-            <h4 style={{ marginBottom: 12, fontSize: '1rem' }}>Step 1: Verify Wallet Ownership</h4>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 20 }}>
-              Connect MetaMask and sign the verification request. The address must match your registered wallet.
-            </p>
-            <WalletConnect onConnect={(addr) => handleWalletVerify(addr, false)} />
-
-            {/* Developer Testing Tools */}
-            <div style={{
-              marginTop: 24, padding: '20px 16px', borderRadius: 'var(--radius-sm)',
-              background: 'rgba(99, 102, 241, 0.05)',
-              border: '1px solid rgba(99, 102, 241, 0.1)',
-            }}>
-              <h4 style={{ fontSize: '0.9rem', color: 'var(--accent)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                Developer Testing Tools
-              </h4>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>
-                Bypass MetaMask and authenticate with any wallet address directly:
+          <div className="wallet-container-box">
+            <div className="card-header-pane">
+              <h2 className="step-heading">1. Chứng minh sở hữu Ví</h2>
+              <p className="step-desc">
+                Kết nối ví MetaMask của bạn và ký chuỗi mã hóa để xác thực tài khoản Node phân tán.
               </p>
+            </div>
+            <div className="card-body-pane">
+              <WalletConnect onConnect={(addr) => handleWalletVerify(addr, false)} />
 
-              <div className="form-group" style={{ marginBottom: 12 }}>
-                <label className="form-label" style={{ fontSize: '0.75rem' }}>Select Pre-funded Account</label>
-                <select
-                  className="form-input"
-                  style={{ fontSize: '0.85rem' }}
-                  value={customWallet}
-                  onChange={(e) => setCustomWallet(e.target.value)}
+              {/* Developer Testing Tools Drawer */}
+              <div className="dev-drawer">
+                <div className="dev-title">Developer Testing Box</div>
+
+                <div className="form-block">
+                  <label className="auth-label">Hardhat Accounts</label>
+                  <select className="auth-select" value={customWallet} onChange={e => setCustomWallet(e.target.value)}>
+                    <option value="">-- Chọn tài khoản mẫu Sandbox --</option>
+                    <option value="0x70997970C51812dc3A010C7d01b50e0d17dc79C8">Account #1: 0x7099...79C8</option>
+                    <option value="0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC">Account #2: 0x3C44...93BC</option>
+                    <option value="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">Account #0: 0xf39F...2266</option>
+                  </select>
+                </div>
+
+                <div className="form-block">
+                  <label className="auth-label">Custom Mock Address</label>
+                  <input
+                    className="auth-input"
+                    type="text"
+                    placeholder="0x..."
+                    value={customWallet}
+                    onChange={e => setCustomWallet(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  className="core-btn"
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--input-border)', height: '38px', fontSize: '0.825rem' }}
+                  disabled={!customWallet || loading}
+                  onClick={() => handleWalletVerify(customWallet, true)}
                 >
-                  <option value="">-- Choose a Hardhat Account --</option>
-                  <option value="0x70997970C51812dc3A010C7d01b50e0d17dc79C8">Account #1: 0x7099...79C8</option>
-                  <option value="0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC">Account #2: 0x3C44...93BC</option>
-                  <option value="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266">Account #0: 0xf39F...2266</option>
-                </select>
+                  Bypass MetaMask với Ví giả lập
+                </button>
               </div>
-
-              <div className="form-group" style={{ marginBottom: 16 }}>
-                <label className="form-label" style={{ fontSize: '0.75rem' }}>Or Enter Custom Wallet Address</label>
-                <input
-                  className="form-input"
-                  type="text"
-                  placeholder="0x..."
-                  value={customWallet}
-                  onChange={(e) => setCustomWallet(e.target.value)}
-                  style={{ fontSize: '0.85rem' }}
-                />
-              </div>
-
-              <button
-                className="btn btn-secondary btn-full"
-                type="button"
-                disabled={!customWallet || loading}
-                onClick={() => handleWalletVerify(customWallet, true)}
-                style={{ fontSize: '0.85rem', fontWeight: 600 }}
-              >
-                Confirm Selected Wallet
-              </button>
             </div>
           </div>
         ) : (
-          /* Step 2: Face Capture with Liveness Detection */
-          <div className="fade-in" style={{ background: 'var(--bg-card)', padding: 24, borderRadius: 8, border: '1px solid var(--border)' }}>
-            <h4 style={{ marginBottom: 12, fontSize: '1rem' }}>
-              {isAdmin ? 'Quét khuôn mặt để hoàn tất đăng nhập' : 'Bước 2: Xác thực sinh trắc học'}
-            </h4>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 20 }}>
-              Hệ thống sẽ yêu cầu bạn quay đầu để xác minh người thật, sau đó so khớp khuôn mặt đã đăng ký.
-            </p>
-            <FaceCapture onCapture={handleFaceVerify} requireLiveness={true} />
+          /* STEP 2: FACE CAPTURE */
+          <div>
+            <div className="card-header-pane">
+              <h2 className="step-heading">
+                {isAdmin ? 'Xác thực sinh học khuôn mặt' : 'Bước 2: Quét Face trắc sinh học'}
+              </h2>
+              <p className="step-desc">
+                Vui lòng nhìn thẳng vào camera điều hướng để đối khớp lớp bảo mật liveness dữ liệu mã hóa.
+              </p>
+            </div>
 
-            {/* Doctor can rollback to wallet step; Admin cannot (wallet was verified at login) */}
-            {!isAdmin && (
-              <button
-                className="btn btn-secondary btn-full"
-                type="button"
-                onClick={handleRollback}
-                disabled={loading}
-                style={{ marginTop: 16, border: '1px dashed var(--border)' }}
-              >
-                ← Quay lại bước 1 (Xác thực ví)
-              </button>
-            )}
+            <div className="card-body-pane">
+              <div className="tech-camera-frame">
+                <FaceCapture onCapture={handleFaceVerify} requireLiveness={true} />
+              </div>
+
+              {!isAdmin && (
+                <button className="rollback-link" onClick={handleRollback} disabled={loading}>
+                  Quay lại thay đổi Ví xác thực
+                </button>
+              )}
+            </div>
           </div>
         )}
 
+        {/* Global Toast Status Message */}
         {status && (
-          <p style={{
-            marginTop: 20, padding: '10px 14px', borderRadius: 6, fontSize: '0.9rem',
-            background: 'rgba(0,0,0,0.2)',
-            color: status.includes('✅') ? 'var(--success)' : status.includes('❌') ? 'var(--danger)' : 'var(--text-secondary)'
-          }}>
+          <div className={`status-toast ${status.includes('thất bại') || status.includes('failed') ? 'has-error' : status.includes('thành công') ? 'has-success' : ''}`} style={{ margin: '0 28px 28px' }}>
             {status}
-          </p>
+          </div>
         )}
 
-        {/* Wallet Recovery link */}
-        <div style={{
-          marginTop: 24, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.05)',
-          display: 'flex', justifyContent: 'center'
-        }}>
+        {/* Alternate Recovery Gate */}
+        <div className="recovery-gate">
           <button
-            className="btn btn-ghost"
             onClick={() => navigate('/recovery')}
-            style={{ fontSize: '0.85rem', color: 'var(--warning)', fontWeight: 600 }}
+            style={{ background: 'none', border: 'none', color: 'var(--warning)', fontSize: '0.825rem', fontWeight: 600, cursor: 'pointer' }}
           >
-            {isAdmin ? 'Mất ví? Khôi phục bằng MFA & Face' : 'Lost Wallet? Recover using ZKP & Face Biometric'} →
+            {isAdmin ? 'Yêu cầu khôi phục quyền Admin gốc' : 'Mất thiết bị hoặc Ví? Khôi phục qua ZKP Gate'} →
           </button>
         </div>
+
       </div>
     </div>
   );

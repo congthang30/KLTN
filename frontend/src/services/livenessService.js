@@ -7,8 +7,8 @@ let initPromise = null;
 export const THRESHOLDS = {
   // Head direction thresholds (ratio-based)
   // Yaw center ≈ 1.0, Pitch center ≈ 0.85
-  YAW_LEFT: 0.72,      // ratio < this → looking LEFT
-  YAW_RIGHT: 1.28,     // ratio > this → looking RIGHT
+  YAW_LEFT: 1.28,      // ratio > this → looking LEFT
+  YAW_RIGHT: 0.72,     // ratio < this → looking RIGHT
   PITCH_UP: 0.67,      // ratio < this → looking UP
   PITCH_DOWN: 1.03,    // ratio > this → looking DOWN
 
@@ -118,8 +118,8 @@ export function detectLandmarks(videoEl, timestampMs) {
  * Compute head pose from face landmarks using geometric heuristics
  * 
  * Yaw (left/right): Compare distance from nose to each eye
- *   - If nose is closer to left eye → looking RIGHT (from user's perspective)
- *   - If nose is closer to right eye → looking LEFT
+ *   - If the ratio grows above center → looking LEFT from user's perspective
+ *   - If the ratio drops below center → looking RIGHT from user's perspective
  * 
  * Pitch (up/down): Compare nose-to-eye vs nose-to-chin vertical ratio
  *   - If nose is relatively higher → looking UP
@@ -171,7 +171,7 @@ export function classifyDirection(yawRatio, pitchRatio) {
   // If both axes are significant, pick the one with larger deviation
   if (yawSignificant && pitchSignificant) {
     if (yawDeviation > pitchDeviation) {
-      return yawRatio < 1.0 ? 'left' : 'right';
+      return yawRatio > 1.0 ? 'left' : 'right';
     } else {
       return pitchRatio < 0.85 ? 'up' : 'down';
     }
@@ -179,7 +179,7 @@ export function classifyDirection(yawRatio, pitchRatio) {
 
   // Only one axis is significant
   if (yawSignificant) {
-    return yawRatio < 1.0 ? 'left' : 'right';
+    return yawRatio > 1.0 ? 'left' : 'right';
   }
   if (pitchSignificant) {
     return pitchRatio < 0.85 ? 'up' : 'down';
