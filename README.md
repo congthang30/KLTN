@@ -1,231 +1,113 @@
 # 🛡️ ZKP Identity Verification System — Hospital Management
 
-Hệ thống xác thực danh tính đa lớp tích hợp **Zero-Knowledge Proofs (Groth16)**, **Nhận diện khuôn mặt với Liveness Detection (MediaPipe & face-api.js)** và **Blockchain (Hardhat + Solidity)**.
-
-Admin đăng nhập hoàn toàn **không cần username/password** — chỉ dùng **Ví Web3 + Khuôn mặt + ZKP**. Doctor giữ nguyên cơ chế username/password truyền thống.
+Hệ thống xác thực danh tính đa lớp tích hợp **Zero-Knowledge Proofs (ZKP - Groth16)**, **Sinh trắc học nhận diện khuôn mặt kèm kiểm tra thực thể sống (Liveness Detection - MediaPipe & face-api.js)**, và **Blockchain (Solidity & Hardhat)** để bảo vệ hệ thống quản lý bệnh viện.
 
 ---
 
-## 📋 Mục lục
-1. [Cách tạo tài khoản Admin](#-1-cách-tạo-tài-khoản-admin-quan-trọng-nhất)
-2. [Chạy bằng Docker Compose](#-2-hướng-dẫn-chạy-full-bằng-docker-compose)
-3. [Chạy thủ công từng service](#-3-hướng-dẫn-chạy-bằng-tay-từng-service)
-4. [Cấu hình MetaMask](#-4-cấu-hình-metamask-với-mạng-blockchain-local)
-5. [Thông tin tài khoản Doctor](#-5-thông-tin-đăng-nhập-doctor)
-6. [Kiến trúc bảo mật](#-6-kiến-trúc-bảo-mật-3-lớp-anti-hacker)
+## 📖 Tổng quan dự án
+
+Hệ thống này được phát triển nhằm giải quyết triệt để vấn đề rò rỉ dữ liệu y tế do bị chiếm quyền tài khoản quản trị viên.
+
+Bằng cách áp dụng mô hình bảo mật phi tập trung và Zero-Knowledge Proofs (ZKP), hệ thống đảm bảo:
+1. **Admin đăng nhập không cần mật khẩu:** Admin chỉ cần Ví Web3 + Biometric khuôn mặt để tạo ZKP đăng ký và đăng nhập.
+2. **Bác sĩ đăng nhập bằng sinh trắc học:** Sau lần thiết lập mật khẩu đầu tiên, Bác sĩ chỉ cần quét khuôn mặt (kiểm tra liveness) để truy cập nhanh chóng và an toàn.
+3. **Bảo mật Cookies HTTP-Only:** Phiên đăng nhập được quản lý bằng JWT Token lưu trong Cookie HTTP-Only để chống lại các cuộc tấn công XSS và đánh cắp token.
 
 ---
 
-## 🔐 1. CÁCH TẠO TÀI KHOẢN ADMIN (QUAN TRỌNG NHẤT)
+## 🛡️ Kiến trúc bảo mật đa lớp (Multi-layered Security)
 
-> **Admin KHÔNG có username/password.** Thay vào đó, Admin dùng **Ví Web3 + Face Biometric + ZKP** để đăng nhập.
+Hệ thống bảo vệ dữ liệu nhạy cảm của bệnh viện qua 3 lớp phòng thủ độc lập:
 
-### ⚡ Bước 1: Tạo Admin đầu tiên (Bootstrap)
-
-Khi hệ thống mới được deploy, **chưa có Admin nào tồn tại**. Bạn cần gọi API Bootstrap để tạo Admin đầu tiên.
-
-**Sử dụng cURL hoặc Postman:**
-
-```bash
-curl -X POST http://localhost:3001/api/auth/bootstrap \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "admin",
-    "email": "admin@hospital.vn",
-    "superAdminSecret": "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-  }'
+```
+                            [ YÊU CẦU TRUY CẬP ]
+                                     │
+                                     ▼
+        ┌─────────────────────────────────────────────────────────┐
+        │ Lớp 1: Khóa Ví Web3 & Chữ ký mật mã                     │
+        │ └─ Kiểm tra quyền hạn ví đã đăng ký on-chain            │
+        └────────────────────────────┬────────────────────────────┘
+                                     │ (Hợp lệ)
+                                     ▼
+        ┌─────────────────────────────────────────────────────────┐
+        │ Lớp 2: Quét Sinh trắc học & Kiểm tra Liveness            │
+        │ └─ Chống giả mạo ảnh chụp, deepfake bằng cử chỉ đầu    │
+        └────────────────────────────┬────────────────────────────┘
+                                     │ (Khớp khuôn mặt & Liveness)
+                                     ▼
+        ┌─────────────────────────────────────────────────────────┐
+        │ Lớp 3: Tạo và Kiểm tra Zero-Knowledge Proofs (ZKP)      │
+        │ └─ Chứng minh quyền sở hữu cam kết mà không tiết lộ khóa│
+        └────────────────────────────┬────────────────────────────┘
+                                     │ (Proof hợp lệ)
+                                     ▼
+                          [ ĐĂNG NHẬP THÀNH CÔNG ]
 ```
 
-**Hoặc dùng PowerShell:**
-
-```powershell
-Invoke-RestMethod -Uri "http://localhost:3001/api/auth/bootstrap" `
-  -Method POST `
-  -ContentType "application/json" `
-  -Body '{"username":"admin","email":"admin@hospital.vn","superAdminSecret":"0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"}'
-```
-
-> ⚠️ **`superAdminSecret`** chính là giá trị `SUPER_ADMIN_PRIVATE_KEY` trong file `.env`. Cho môi trường dev, đây là private key của Hardhat Account #0.
-
-**Kết quả trả về:**
-```json
-{
-  "message": "First Admin account created successfully!",
-  "user": { "id": "...", "username": "admin", "email": "admin@hospital.vn", "role": "ADMIN" },
-  "inviteToken": "a1b2c3d4e5f6...64_hex_chars...",
-  "instructions": "Use this invite token on the Login page → Admin tab → \"Invite Code\" to complete registration."
-}
-```
-
-> 🔒 **API này chỉ hoạt động 1 LẦN DUY NHẤT** — khi đã có Admin trong hệ thống, endpoint này sẽ trả về lỗi `403 Forbidden`.
-
-### ⚡ Bước 2: Đăng nhập lần đầu bằng Invite Token
-
-1. Mở trình duyệt → `http://localhost:5173`
-2. Chọn tab **🔐 Admin (Ví Web3)**
-3. Nhấn nút **🎟️ Mã mời (Lần đầu)**
-4. Dán **invite token** từ Bước 1 vào ô nhập
-5. Nhấn **Xác nhận mã mời**
-
-### ⚡ Bước 3: Hoàn tất đăng ký danh tính (3 bước)
-
-Sau khi nhập invite token thành công, hệ thống sẽ:
-
-| Bước | Mô tả |
-|------|-------|
-| **📷 Face Scan** | Camera tự bật → Quay đầu theo 3 hướng (Liveness Detection kiểu Agribank) → Lưu face embedding |
-| **🦊 Connect Wallet** | Kết nối ví MetaMask bất kỳ (hoặc chọn Hardhat account cho dev) |
-| **🛡️ ZKP Identity** | Tạo commitment = Poseidon(secret, faceHash) → Đăng ký on-chain qua Super Admin Relayer |
-
-> 💡 **Mã bí mật MFA** sẽ xuất hiện 1 LẦN DUY NHẤT sau khi nhập invite token. **Copy và lưu giữ cẩn thận** — dùng để khôi phục tài khoản khi mất ví.
-
-### ⚡ Bước 4: Đăng nhập lại sau này (không cần password!)
-
-Từ lần sau, Admin đăng nhập chỉ cần:
-1. Mở web → Tab **Admin** → Nhấn **🦊 Kết nối MetaMask & Đăng nhập**
-2. MetaMask popup → Ký xác nhận (Sign)
-3. Quét khuôn mặt → Vào Dashboard!
-
-### ⚡ Tạo thêm Admin (sau khi đã có Admin đầu tiên)
-
-Admin đầu tiên có thể tạo thêm Admin khác qua Dashboard:
-- Vào **Dashboard → Quản lý Users → Tạo User mới** với role `ADMIN`
-- Hoặc gọi API:
-
-```bash
-curl -X POST http://localhost:3001/api/users/create \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <admin_jwt_token>" \
-  -d '{"username": "admin2", "email": "admin2@hospital.vn", "role": "ADMIN"}'
-```
-
-Hệ thống sẽ tạo invite token mới và gửi qua email (hoặc trả về trong response cho dev).
+### Chi tiết các lớp bảo mật:
+* **Lớp 1: Chữ ký Ví Web3 (Cryptography):** Yêu cầu người dùng ký một thông báo nonce ngẫu nhiên bằng khóa cá nhân thông qua MetaMask. Địa chỉ ví này phải khớp với ví đã được đăng ký và ủy quyền trong hợp đồng thông minh Smart Contract.
+* **Lớp 2: Xác thực Liveness sinh trắc học (Biometrics):** Yêu cầu người dùng quay đầu theo các góc ngẫu nhiên (lên, xuống, trái, phải, thẳng). Hệ thống so khớp đặc trưng khuôn mặt (128-dimensional embedding) với cơ sở dữ liệu với ngưỡng tin cậy cao (Threshold > 0.85).
+* **Lớp 3: Zero-Knowledge Proofs (ZKP):** Sử dụng Poseidon Hash tạo mật mã cam kết (commitment) từ khóa bí mật MFA và hash khuôn mặt. Khi đăng nhập, một bằng chứng Groth16 Proof được tạo ở phía client để chứng minh danh tính mà không làm lộ khóa bí mật hoặc dữ liệu khuôn mặt.
 
 ---
 
-## 🐳 2. HƯỚNG DẪN CHẠY FULL BẰNG DOCKER COMPOSE
+## 🛠️ Công nghệ sử dụng (Technology Stack)
 
-### 📋 Bước 2.1: Chuẩn bị
-1. Cài đặt **Docker Desktop** và đảm bảo đang chạy (biểu tượng xanh lá).
-2. Kiểm tra file `.env` ở thư mục gốc đã có `SUPER_ADMIN_PRIVATE_KEY`.
+### 1. Zero-Knowledge Cryptography
+* **Circom & SnarkJS:** Dùng để biên dịch mạch số (circuits) ZKP và tạo/kiểm tra bằng chứng Groth16 trên trình duyệt và backend.
 
-### 🚀 Bước 2.2: Khởi chạy
-```bash
-docker-compose up --build
-```
+### 2. Blockchain & Smart Contracts
+* **Solidity & Hardhat:** Viết và kiểm thử các Smart Contract quản lý ví được ủy quyền (`IdentityRegistry.sol`) và bộ kiểm thử Proof (`Verifier.sol`).
+* **Ethers.js:** Thư viện giao tiếp giữa Node.js/React và mạng Blockchain Ethereum Local (Hardhat Node).
 
-### ⏳ Bước 2.3: Thứ tự khởi động tự động
-1. **`zkp-postgres`** — PostgreSQL database (cổng `5432`)
-2. **`zkp-blockchain`** — Hardhat Node + auto deploy Smart Contract (cổng `8545`)
-3. **`zkp-backend`** — NestJS API + Prisma migration + seed (cổng `3001`)
-4. **`zkp-frontend`** — React Vite (cổng `5173`)
+### 3. Biometric & Computer Vision
+* **face-api.js & MediaPipe:** Nhận diện điểm mốc khuôn mặt (facial landmarks) và trích xuất vector đặc trưng khuôn mặt ngay trên trình duyệt.
 
-> Hệ thống sẵn sàng khi Terminal hiện: `zkp-frontend  |   VITE v5.4.21  ready in XX ms`
+### 4. Backend & Database
+* **NestJS (TypeScript):** Hệ khung làm việc cho API backend, tổ chức module rõ ràng.
+* **Prisma ORM & PostgreSQL:** Quản lý cơ sở dữ liệu quan hệ, lưu trữ thông tin bác sĩ, admin, cấu hình sinh trắc học đã mã hóa và lịch sử hệ thống.
 
-### 🛑 Các lệnh Docker hữu ích
+### 5. Frontend & Security
+* **React.js & Vite:** Giao diện SPA nhanh, mượt mà và trực quan.
+* **Cookies HTTP-Only:** Bảo mật thông tin phiên làm việc (JWT) chống tấn công lấy cắp Token.
 
-```bash
-# Chạy nền (background)
-docker-compose up -d --build
+---
 
-# Xem log backend
-docker logs -f zkp-backend
+## 📂 Cơ cấu thư mục dự án
 
-# Dừng hệ thống
-docker-compose down
-
-# Reset hoàn toàn DB + Blockchain (⚠️ xóa hết data!)
-docker-compose down -v
+```text
+├── backend/            # NestJS Backend API
+│   ├── src/
+│   │   ├── auth/       # Mô-đun xác thực & quản lý phiên bằng Cookies
+│   │   ├── face/       # Mô-đun xác thực sinh trắc học khuôn mặt
+│   │   ├── users/      # Quản lý người dùng, tạo mã mời
+│   │   └── zkp/        # Xác minh Proof sinh ra từ trình duyệt
+│   ├── prisma/         # Schema cơ sở dữ liệu & dữ liệu mẫu (seeds)
+│   └── Dockerfile
+│
+├── frontend/           # React.js SPA (Vite)
+│   ├── src/
+│   │   ├── components/ # Camera quét khuôn mặt, Liveness detection, Ví Web3
+│   │   ├── contexts/   # AuthContext quản lý cookies & WalletContext
+│   │   ├── pages/      # Login, Dashboard, Admin Recovery
+│   │   └── services/   # Gọi API giao tiếp Backend
+│   └── Dockerfile
+│
+├── blockchain/         # Mạng Blockchain Local & Smart Contracts
+│   ├── contracts/      # Hợp đồng thông minh Solidity
+│   ├── scripts/        # Kịch bản Deploy Smart Contract tự động
+│   └── start.sh        # Script khởi động tự động trong container
+│
+├── docker-compose.yml  # File orchestration khởi chạy toàn bộ hệ thống
+└── RUN.md              # Hướng dẫn khởi chạy & thiết lập chi tiết
 ```
 
 ---
 
-## 🛠️ 3. HƯỚNG DẪN CHẠY BẰNG TAY TỪNG SERVICE
+## 📄 Tài liệu hướng dẫn liên quan
 
-### 🖥️ Terminal 1: Blockchain Node
-```bash
-cd blockchain
-npm install
-npm run node
-```
-
-### 🖥️ Terminal 2: Deploy Smart Contract
-```bash
-cd blockchain
-npm run deploy:local
-```
-*Ghi lại địa chỉ `IdentityRegistry` được in ra.*
-
-### 🖥️ Terminal 3: Backend (NestJS)
-```bash
-cd backend
-npm install
-npx prisma db push
-npx prisma db seed
-npm run start:dev
-```
-
-### 🖥️ Terminal 4: Frontend (React Vite)
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Truy cập: `http://localhost:5173`
-
----
-
-## 🦊 4. CẤU HÌNH METAMASK VỚI MẠNG BLOCKCHAIN LOCAL
-
-### 🌐 Thêm Mạng Hardhat Network
-1. MetaMask → **Add network** → **Add a network manually**
-2. Điền:
-   - **Network Name:** `Hardhat Localhost`
-   - **New RPC URL:** `http://localhost:8545`
-   - **Chain ID:** `31337`
-   - **Currency Symbol:** `ETH`
-
-### 🔑 Import Ví thử nghiệm (10,000 ETH)
-
-| Tài khoản | Địa chỉ | Private Key |
-|-----------|---------|-------------|
-| **Account #0** (Super Admin) | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | `0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80` |
-| **Account #1** (Admin/User) | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d` |
-| **Account #2** (Doctor) | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` | `0x5de4111afa73f9876e5228e37186140b6e9b40ba9c195609ee7def409a5ae9cd` |
-
-**Import:** MetaMask → Biểu tượng tài khoản → **Import account** → Dán Private Key → **Import**
-
----
-
-## 👨‍⚕️ 5. THÔNG TIN ĐĂNG NHẬP DOCTOR
-
-Doctor sử dụng **username + password** truyền thống. Tài khoản mẫu (từ seed):
-
-| Username | Password tạm | Email |
-|----------|-------------|-------|
-| `dr.john.doe` | `doctor123` | john.doe@hospital.vn |
-| `dr.jane.smith` | `doctor123` | jane.smith@hospital.vn |
-| `dr.alan.turing` | `doctor123` | alan.turing@hospital.vn |
-
-Khi đăng nhập lần đầu, Doctor phải đổi mật khẩu → Quét khuôn mặt → Kết nối ví → Đăng ký ZKP.
-
----
-
-## 🛡️ 6. KIẾN TRÚC BẢO MẬT 3 LỚP (ANTI-HACKER)
-
-```
-Hacker chiếm được Database?
-    ↓
-Lớp 1: Connect Wallet → Backend gọi isAuthorized() ON-CHAIN
-        → Ví chưa đăng ký trên blockchain ❌ BLOCKED!
-        → Chỉ Super Admin Relayer mới đăng ký được ví on-chain
-    ↓
-Lớp 2: Face Biometric → Liveness Detection (quay đầu)
-        → Không thể fake khuôn mặt ❌ BLOCKED!
-    ↓
-Lớp 3: ZKP Proof → Cần biết secret + faceHash
-        → Secret chỉ hiện 1 lần, mã hóa AES trong DB ❌ BLOCKED!
-```
-
-**Kết luận:** Dù hacker chiếm quyền Database, KHÔNG THỂ đăng nhập vì blockchain bất biến, khuôn mặt không thể fake, và ZKP secret không thể đoán.
+Vui lòng xem file [RUN.md](file:///home/trananhduc/Documents/KLTN/RUN.md) để biết cách:
+* Cấu hình biến môi trường `.env`.
+* Khởi chạy dự án bằng **Docker Compose** hoặc chạy **thủ công (Manual)**.
+* Cấu hình ví **MetaMask** kết nối với mạng blockchain localhost.
+* Gọi API **Bootstrap** tạo tài khoản Admin đầu tiên và thông tin đăng nhập mẫu.
