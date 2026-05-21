@@ -117,7 +117,7 @@ export default function DashboardPage() {
                 <>
                   <thead style={{ background: 'rgba(0,0,0,0.2)' }}>
                     <tr>
-                      {['ID', 'Họ và Tên', 'Chuyên Khoa', 'Số Điện Thoại', 'Trạng Thái'].map((h) => (
+                      {['ID', 'Họ và Tên', 'Chuyên Khoa', 'Chức Vụ', 'Trạng Thái'].map((h) => (
                         <th key={h} style={thStyle}>{h}</th>
                       ))}
                     </tr>
@@ -126,11 +126,15 @@ export default function DashboardPage() {
                     {data.doctors.length === 0 && <EmptyRow cols={5} />}
                     {data.doctors.map((d) => (
                       <tr key={d.id} style={rowStyle} className="hover:bg-elevated">
-                        <td style={tdStyle}><span className="mono">#{d.id.substring(0, 8)}…</span></td>
-                        <td style={{ ...tdStyle, fontWeight: 500 }}>{d.name}</td>
-                        <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.specialty}</td>
-                        <td style={tdStyle}>{d.phone}</td>
-                        <td style={tdStyle}><span className="badge badge-success">{d.status}</span></td>
+                        <td style={tdStyle}><span className="mono">#{formatShortId(d.id)}</span></td>
+                        <td style={{ ...tdStyle, fontWeight: 500 }}>{getDoctorName(d)}</td>
+                        <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.specialties || d.specialty || 'Chưa cập nhật'}</td>
+                        <td style={tdStyle}>{d.position || 'Chưa cập nhật'}</td>
+                        <td style={tdStyle}>
+                          <span className={`badge ${getDoctorStatus(d) === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`}>
+                            {getDoctorStatus(d)}
+                          </span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -154,7 +158,7 @@ export default function DashboardPage() {
                         <td style={{ ...tdStyle, fontWeight: 500 }}>{d.patientName}</td>
                         <td style={{ ...tdStyle, color: 'var(--info)' }}>{d.disease}</td>
                         <td style={tdStyle}>{d.treatment}</td>
-                        <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.doctor?.name}</td>
+                        <td style={{ ...tdStyle, color: 'var(--primary)' }}>{d.doctor?.doctorName || d.doctor?.name || 'Chưa cập nhật'}</td>
                         <td style={tdStyle}>
                           <span className={`badge ${d.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}`}>
                             {d.status}
@@ -244,11 +248,8 @@ export default function DashboardPage() {
       <CreateDoctorModal
         open={showCreateDoctor}
         onClose={() => setShowCreateDoctor(false)}
-        onSuccess={(newDoctor) => {
-          setData((prev) => ({
-            ...prev,
-            doctors: [{ ...newDoctor, user: { username: newDoctor.username, email: newDoctor.email, status: 'ACTIVE' } }, ...prev.doctors],
-          }));
+        onSuccess={async () => {
+          await loadHospitalData();
           setShowCreateDoctor(false);
         }}
       />
@@ -265,6 +266,18 @@ function EmptyRow({ cols }) {
       </td>
     </tr>
   );
+}
+
+function formatShortId(id) {
+  return id ? `${id.substring(0, 8)}…` : '--';
+}
+
+function getDoctorName(doctor) {
+  return doctor.doctorName || doctor.name || doctor.user?.username || 'Chưa cập nhật';
+}
+
+function getDoctorStatus(doctor) {
+  return doctor.doctorStatus || doctor.user?.status || doctor.status || 'UNKNOWN';
 }
 
 const thStyle = {
