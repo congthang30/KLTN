@@ -19,7 +19,7 @@ services:
     container_name: zkp-blockchain
     ports:
       - "8545:8545"
-    command: sh -c "chmod +x start.sh && ./start.sh"
+    command: sh -c "dos2unix start.sh && chmod +x start.sh && ./start.sh"
 
   backend:
     build:
