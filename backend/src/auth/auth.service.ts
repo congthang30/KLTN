@@ -550,6 +550,25 @@ export class AuthService {
     return { message: 'Mật khẩu đã được cập nhật thành công.' };
   }
 
+  async getMe(userId: string, verified: boolean) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        verified: verified,
+        firstLogin: user.firstLogin,
+      }
+    };
+  }
+
   // ============================================================
   // Private helpers
   // ============================================================

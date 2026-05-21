@@ -7,21 +7,38 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(JSON.parse(localStorage.getItem('user') || 'null'));
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!localStorage.getItem('token'));
 
   const api = axios.create({
     baseURL: API_URL,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 
-  // Update axios headers when token changes
+  // Verify session on mount
   useEffect(() => {
+    const verifySession = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/auth/me`);
+        const userData = res.data.user;
+        setUser(userData);
+        setToken('cookie_present');
+        localStorage.setItem('token', 'cookie_present');
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (err) {
+        setToken(null);
+        setUser(null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (token) {
-      api.defaults.headers.Authorization = `Bearer ${token}`;
+      verifySession();
     } else {
-      delete api.defaults.headers.Authorization;
+      setLoading(false);
     }
-  }, [token]);
+  }, []);
 
   // ============================================================
   // DOCTOR: Traditional login with username/password
@@ -30,10 +47,10 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/auth/login`, { username, password });
-      const { access_token, user: userData, firstLogin } = res.data;
-      setToken(access_token);
+      const { user: userData, firstLogin } = res.data;
+      setToken('cookie_present');
       setUser({ ...userData, firstLogin });
-      localStorage.setItem('token', access_token);
+      localStorage.setItem('token', 'cookie_present');
       localStorage.setItem('user', JSON.stringify({ ...userData, firstLogin }));
       return { success: true, firstLogin, user: userData };
     } catch (err) {
@@ -54,10 +71,10 @@ export function AuthProvider({ children }) {
         signature,
         message,
       });
-      const { access_token, user: userData } = res.data;
-      setToken(access_token);
+      const { user: userData } = res.data;
+      setToken('cookie_present');
       setUser({ ...userData, firstLogin: false });
-      localStorage.setItem('token', access_token);
+      localStorage.setItem('token', 'cookie_present');
       localStorage.setItem('user', JSON.stringify({ ...userData, firstLogin: false }));
       return { success: true, user: userData };
     } catch (err) {
@@ -74,10 +91,10 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/auth/invite-login`, { inviteToken });
-      const { access_token, user: userData } = res.data;
-      setToken(access_token);
+      const { user: userData } = res.data;
+      setToken('cookie_present');
       setUser({ ...userData, firstLogin: true });
-      localStorage.setItem('token', access_token);
+      localStorage.setItem('token', 'cookie_present');
       localStorage.setItem('user', JSON.stringify({ ...userData, firstLogin: true }));
       return { success: true, user: userData };
     } catch (err) {
@@ -88,15 +105,20 @@ export function AuthProvider({ children }) {
   };
 
   const updateToken = (newToken, userData = null) => {
-    setToken(newToken);
-    localStorage.setItem('token', newToken);
+    setToken('cookie_present');
+    localStorage.setItem('token', 'cookie_present');
     if (userData) {
       setUser(prev => ({ ...prev, ...userData }));
       localStorage.setItem('user', JSON.stringify({ ...user, ...userData }));
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await axios.post(`${API_URL}/auth/logout`);
+    } catch (err) {
+      console.warn('Backend logout failed', err);
+    }
     setToken(null);
     setUser(null);
     localStorage.removeItem('token');

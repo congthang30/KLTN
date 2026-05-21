@@ -1,8 +1,9 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Request, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto, VerifyWalletDto, VerifyFaceDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { Response } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -45,24 +46,60 @@ export class AuthController {
    * Step 2: Submit signed nonce to login
    */
   @Post('wallet-login')
-  async walletLogin(@Body() body: { walletAddress: string; signature: string; message: string }) {
-    return this.authService.walletLogin(body.walletAddress, body.signature, body.message);
+  async walletLogin(
+    @Body() body: { walletAddress: string; signature: string; message: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.walletLogin(body.walletAddress, body.signature, body.message);
+    if (result.access_token) {
+      res.cookie('token', result.access_token, {
+        httpOnly: true,
+        secure: false, // Set to true in production
+        sameSite: 'lax',
+        maxAge: 3600000,
+      });
+    }
+    return result;
   }
 
   /**
    * Admin first-time: Login with invite token (no password)
    */
   @Post('invite-login')
-  async inviteLogin(@Body() body: { inviteToken: string }) {
-    return this.authService.loginWithInviteToken(body.inviteToken);
+  async inviteLogin(
+    @Body() body: { inviteToken: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.loginWithInviteToken(body.inviteToken);
+    if (result.access_token) {
+      res.cookie('token', result.access_token, {
+        httpOnly: true,
+        secure: false, // Set to true in production
+        sameSite: 'lax',
+        maxAge: 3600000,
+      });
+    }
+    return result;
   }
 
   // ============================================================
   // DOCTOR: Traditional username/password login
   // ============================================================
   @Post('login')
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.username, dto.password);
+  async login(
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.login(dto.username, dto.password);
+    if (result.access_token) {
+      res.cookie('token', result.access_token, {
+        httpOnly: true,
+        secure: false, // Set to true in production
+        sameSite: 'lax',
+        maxAge: 3600000,
+      });
+    }
+    return result;
   }
 
   // ============================================================
@@ -74,8 +111,20 @@ export class AuthController {
    * Returns a temporary access token for ZKP recovery page.
    */
   @Post('recover-init')
-  async recoverInit(@Body() body: { embedding: number[] }) {
-    return this.authService.recoverInit(body.embedding);
+  async recoverInit(
+    @Body() body: { embedding: number[] },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.recoverInit(body.embedding);
+    if (result.access_token) {
+      res.cookie('recovery_token', result.access_token, {
+        httpOnly: true,
+        secure: false, // Set to true in production
+        sameSite: 'lax',
+        maxAge: 900000, // 15 mins
+      });
+    }
+    return result;
   }
 
   /**
@@ -83,8 +132,20 @@ export class AuthController {
    * Returns a temporary access token for Reset Password page.
    */
   @Post('doctor-recover-init')
-  async doctorRecoverInit(@Body() body: { embedding: number[] }) {
-    return this.authService.doctorRecoverInit(body.embedding);
+  async doctorRecoverInit(
+    @Body() body: { embedding: number[] },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.doctorRecoverInit(body.embedding);
+    if (result.access_token) {
+      res.cookie('recovery_token', result.access_token, {
+        httpOnly: true,
+        secure: false, // Set to true in production
+        sameSite: 'lax',
+        maxAge: 900000, // 15 mins
+      });
+    }
+    return result;
   }
 
   /**
@@ -104,8 +165,48 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard)
   @Post('verify-face')
-  async verifyFace(@Request() req, @Body() dto: VerifyFaceDto) {
-    return this.authService.verifyFace(req.user.sub, dto.embedding);
+  async verifyFace(
+    @Request() req,
+    @Body() dto: VerifyFaceDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyFace(req.user.sub, dto.embedding);
+    if (result.access_token) {
+      res.cookie('token', result.access_token, {
+        httpOnly: true,
+        secure: false, // Set to true in production
+        sameSite: 'lax',
+        maxAge: 3600000,
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Get current authenticated user profile
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getMe(@Request() req) {
+    return this.authService.getMe(req.user.sub, req.user.verified);
+  }
+
+  /**
+   * Logout user and clear HTTP-Only cookies
+   */
+  @Post('logout')
+  async logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: false, // Set to true in production
+      sameSite: 'lax',
+    });
+    res.clearCookie('recovery_token', {
+      httpOnly: true,
+      secure: false, // Set to true in production
+      sameSite: 'lax',
+    });
+    return { success: true };
   }
 
   // ============================================================

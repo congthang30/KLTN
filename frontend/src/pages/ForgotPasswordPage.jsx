@@ -14,7 +14,12 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
 
-  const handleBackToLogin = () => {
+  const handleBackToLogin = async () => {
+    try {
+      await authService.logout();
+    } catch (e) {
+      console.warn('Logout failed', e);
+    }
     localStorage.removeItem('recovery_token');
     navigate('/login');
   };

@@ -17,6 +17,7 @@ export const authService = {
     api.post('/auth/change-password', { oldPassword, newPassword }),
 
   // Shared: verification
+  logout: () => api.post('/auth/logout'),
   verifyWallet: (address, signature, message) =>
     api.post('/auth/verify-wallet', { address, signature, message }),
 
