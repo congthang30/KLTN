@@ -98,16 +98,31 @@ Hệ thống bảo vệ dữ liệu nhạy cảm của bệnh viện qua 3 lớp
 │   ├── scripts/        # Kịch bản Deploy Smart Contract tự động
 │   └── start.sh        # Script khởi động tự động trong container
 │
-├── docker-compose.yml  # File orchestration khởi chạy toàn bộ hệ thống
-└── RUN.md              # Hướng dẫn khởi chạy & thiết lập chi tiết
+├── docs/               # Thư mục chứa tài liệu hướng dẫn & quy chuẩn
+│   ├── config/         # Cấu hình cài đặt & khởi chạy dự án
+│   │   └── RUN.md
+│   ├── model/          # Tài liệu về mô hình xác thực khuôn mặt & ZKP
+│   │   └── ZKP_ARCHITECTURE.md
+│   └── design/         # Quy chuẩn hệ thống thiết kế giao diện UI/UX
+│       └── skill-mvp-ui-design.md
+│
+└── docker-compose.yml  # File orchestration khởi chạy toàn bộ hệ thống
 ```
 
 ---
 
 ## 📄 Tài liệu hướng dẫn liên quan
 
-Vui lòng xem file [RUN.md](file:///home/trananhduc/Documents/KLTN/RUN.md) để biết cách:
-* Cấu hình biến môi trường `.env`.
-* Khởi chạy dự án bằng **Docker Compose** hoặc chạy **thủ công (Manual)**.
-* Cấu hình ví **MetaMask** kết nối với mạng blockchain localhost.
-* Gọi API **Bootstrap** tạo tài khoản Admin đầu tiên và thông tin đăng nhập mẫu.
+Hệ thống cung cấp các tài liệu chi tiết sau trong thư mục `docs/`:
+
+* **[Hướng dẫn cài đặt & Khởi chạy (RUN.md)](docs/config/RUN.md):**
+  * Cấu hình biến môi trường `.env`.
+  * Khởi chạy dự án bằng **Docker Compose** hoặc chạy **thủ công (Manual)**.
+  * Cấu hình ví **MetaMask** kết nối với mạng blockchain localhost.
+  * Gọi API **Bootstrap** tạo tài khoản Admin đầu tiên và thông tin đăng nhập mẫu.
+* **[Kiến trúc Xác thực Kép (ZKP_ARCHITECTURE.md)](docs/model/ZKP_ARCHITECTURE.md):**
+  * Luồng hoạt động chi tiết của lớp Biometrics (off-chain) và ZKP (on-chain).
+  * Cách hệ thống xử lý sai số sinh trắc học (Fuzziness) kết hợp với ZKP.
+* **[Hệ thống Quy chuẩn Thiết kế UI/UX (skill-mvp-ui-design.md)](docs/design/skill-mvp-ui-design.md):**
+  * Hệ màu (Color Palette), Typography, và các Component UI mẫu.
+  * Hướng dẫn thiết lập theme Light/Dark và cấu hình Tailwind CSS.
