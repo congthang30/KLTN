@@ -67,7 +67,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)', background: 'var(--bg)' }}>
 
       {/* ── Reusable Sidebar ── */}
       <Sidebar

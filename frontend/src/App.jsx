@@ -43,7 +43,7 @@ export default function App() {
   return (
     <div className="app">
       {token && <Navbar />}
-      <main style={{ paddingTop: token ? '80px' : '0' }}>
+      <main style={{ paddingTop: token ? '64px' : '0' }}>
         <Routes>
           <Route path="/login" element={!token ? <LoginPage /> : <Navigate to="/dashboard" />} />
           
