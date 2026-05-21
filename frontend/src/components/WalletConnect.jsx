@@ -1,10 +1,11 @@
 import { useWallet } from '../contexts/WalletContext';
 
-export default function WalletConnect({ compact = false }) {
+export default function WalletConnect({ onConnect, compact = false }) {
   const { address, connecting, error, connect, disconnect } = useWallet();
 
   const handleConnect = async () => {
-    await connect();
+    const walletAddress = await connect();
+    if (walletAddress) onConnect?.(walletAddress);
   };
 
   // ============================================================
