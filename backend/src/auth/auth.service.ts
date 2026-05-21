@@ -244,7 +244,7 @@ export class AuthService {
     const stored: number[] = JSON.parse(storedEmbedding);
     const similarity = this.cosineSimilarity(embedding, stored);
 
-    if (similarity < 0.85) {
+    if (similarity < 0.92) {
       throw new UnauthorizedException(`Face verification failed (similarity: ${similarity.toFixed(3)})`);
     }
 

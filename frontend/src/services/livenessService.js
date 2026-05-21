@@ -7,14 +7,14 @@ let initPromise = null;
 export const THRESHOLDS = {
   // Head direction thresholds (ratio-based)
   // Yaw center ≈ 1.0, Pitch center ≈ 0.85
-  YAW_LEFT: 0.78,      // ratio < this → looking LEFT
+  YAW_LEFT: 0.72,      // ratio < this → looking LEFT
   YAW_RIGHT: 1.28,     // ratio > this → looking RIGHT
-  PITCH_UP: 0.65,      // ratio < this → looking UP
-  PITCH_DOWN: 0.95,    // ratio > this → looking DOWN
+  PITCH_UP: 0.67,      // ratio < this → looking UP
+  PITCH_DOWN: 1.03,    // ratio > this → looking DOWN
 
   // Minimum deviation from center to count as a direction
-  MIN_YAW_DEVIATION: 0.18,   // |yawRatio - 1.0| must exceed this
-  MIN_PITCH_DEVIATION: 0.12, // |pitchRatio - 0.85| must exceed this
+  MIN_YAW_DEVIATION: 0.28,   // |yawRatio - 1.0| must exceed this (increased from 0.18)
+  MIN_PITCH_DEVIATION: 0.18, // |pitchRatio - 0.85| must exceed this (increased from 0.12)
 
   // Face distance (inter-eye distance in normalized coords)
   DISTANCE_TOO_FAR: 0.05,

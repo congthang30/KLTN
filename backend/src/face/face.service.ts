@@ -77,7 +77,7 @@ export class FaceService {
 
     const stored: number[] = JSON.parse(storedEmbedding);
     const similarity = this.cosineSimilarity(embedding, stored);
-    const match = similarity >= 0.85;
+    const match = similarity >= 0.92; // Increased threshold from 0.85 for stricter matching
 
     return {
       match,
