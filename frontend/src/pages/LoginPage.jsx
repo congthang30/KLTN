@@ -11,8 +11,8 @@ export default function LoginPage() {
   const { login, loginWithWallet, loginWithInvite, loading } = useAuth();
   const { theme, toggleTheme, lang, toggleLang, t } = useThemeLang();
 
-  // Tab: 'admin' | 'doctor'
-  const [activeTab, setActiveTab] = useState('admin');
+  // Role Tab: 'doctor' | 'admin' (User requested: username/pass is Doctor, Wallet is Admin)
+  const [activeTab, setActiveTab] = useState('doctor');
   // Admin sub-mode: 'wallet' | 'invite'
   const [adminMode, setAdminMode] = useState('wallet');
 
@@ -33,6 +33,83 @@ export default function LoginPage() {
   const [generatingSecret, setGeneratingSecret] = useState(false);
 
   const [error, setError] = useState('');
+
+  // ============================================================
+  // SVGs for Premium Interface
+  // ============================================================
+  const firstAidIcon = (
+    <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+      <line x1="12" y1="11" x2="12" y2="17" />
+      <line x1="9" y1="14" x2="15" y2="14" />
+    </svg>
+  );
+
+  const walletIcon = (
+    <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2" />
+      <path d="M23 11a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2z" />
+      <circle cx="18" cy="12" r="1" />
+    </svg>
+  );
+
+  const userIcon = (
+    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+
+  const lockIcon = (
+    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+
+  const inviteIcon = (
+    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <line x1="9" y1="9" x2="15" y2="9" />
+      <line x1="9" y1="13" x2="13" y2="13" />
+    </svg>
+  );
+
+  const globeIcon = (
+    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+
+  const moonIcon = (
+    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+
+  const sunIcon = (
+    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="5" />
+      <line x1="12" y1="1" x2="12" y2="3" />
+      <line x1="12" y1="21" x2="12" y2="23" />
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+      <line x1="1" y1="12" x2="3" y2="12" />
+      <line x1="21" y1="12" x2="23" y2="12" />
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+    </svg>
+  );
+
+  const arrowRightIcon = (
+    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 8 }}>
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
+    </svg>
+  );
 
   // ============================================================
   // ADMIN: Wallet Login (Flow B - Subsequent logins)
@@ -135,169 +212,292 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24,
-      position: 'relative',
-    }}>
+    <div className="login-bg">
+      {/* Background Concentric Rings (Matching screenshot) */}
+      <div style={{
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        zIndex: 0,
+        pointerEvents: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.85 }}>
+          <circle cx="50%" cy="50%" r="220" stroke={theme === 'dark' ? 'rgba(59,130,246,0.06)' : 'rgba(99,102,241,0.04)'} fill="none" strokeWidth="1" />
+          <circle cx="50%" cy="50%" r="380" stroke={theme === 'dark' ? 'rgba(59,130,246,0.04)' : 'rgba(99,102,241,0.025)'} fill="none" strokeWidth="1" />
+          <circle cx="50%" cy="50%" r="560" stroke={theme === 'dark' ? 'rgba(59,130,246,0.02)' : 'rgba(99,102,241,0.015)'} fill="none" strokeWidth="1" />
+        </svg>
+      </div>
+
+      {/* Header - ZKP Identity System (Top Left) */}
+      <div style={{
+        position: 'absolute',
+        top: 28,
+        left: 32,
+        fontSize: '1.25rem',
+        fontWeight: '800',
+        color: theme === 'dark' ? '#818cf8' : '#4f46e5',
+        zIndex: 20,
+        fontFamily: "'Inter', sans-serif",
+        letterSpacing: '-0.02em',
+      }}>
+        ZKP Identity System
+      </div>
+
       {/* Top right controls */}
-      <div style={{ position: 'absolute', top: 24, right: 24, display: 'flex', gap: 12 }}>
-        <button onClick={toggleLang} className="btn btn-ghost btn-sm" style={{ fontWeight: 600 }}>
+      <div style={{ position: 'absolute', top: 24, right: 32, display: 'flex', gap: 12, zIndex: 20 }}>
+        <button 
+          onClick={toggleLang} 
+          className="btn btn-ghost btn-sm" 
+          style={{ 
+            fontWeight: 600, 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 6,
+            borderRadius: '8px',
+            padding: '0 10px',
+            border: `1px solid ${theme === 'dark' ? '#374151' : '#e2e8f0'}`,
+            background: theme === 'dark' ? '#1f2937' : '#ffffff',
+            color: 'var(--text-primary)'
+          }}
+        >
+          {globeIcon}
           {lang === 'vi' ? 'VI' : 'EN'}
         </button>
-        <button onClick={toggleTheme} className="btn btn-ghost btn-sm" style={{ fontSize: '1.2rem' }}>
-          {theme === 'dark' ? 'Light' : 'Dark'}
+        <button 
+          onClick={toggleTheme} 
+          className="btn btn-ghost btn-sm" 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            width: 34, 
+            height: 34, 
+            padding: 0,
+            borderRadius: '8px',
+            border: `1px solid ${theme === 'dark' ? '#374151' : '#e2e8f0'}`,
+            background: theme === 'dark' ? '#1f2937' : '#ffffff',
+            color: 'var(--text-primary)'
+          }}
+          title={theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+        >
+          {theme === 'dark' ? sunIcon : moonIcon}
         </button>
       </div>
 
-      <div className="fade-in" style={{ width: '100%', maxWidth: 480 }}>
-        {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <h1 style={{
-            fontSize: '1.8rem', fontWeight: 800,
-            background: 'linear-gradient(135deg, var(--primary), var(--accent))',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            marginBottom: 12,
+      {/* Center card wrapper */}
+      <div className={`login-card-container ${activeTab === 'doctor' ? 'doctor-mode' : 'admin-mode'}`}>
+        <div className="login-card">
+          {/* Circular Badge Header */}
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <div style={{
+              width: 64,
+              height: 64,
+              borderRadius: '50%',
+              background: activeTab === 'doctor' 
+                ? (theme === 'dark' ? 'rgba(13, 148, 136, 0.15)' : '#ccfbf1') 
+                : (theme === 'dark' ? 'rgba(79, 70, 229, 0.15)' : '#e0e7ff'),
+              color: activeTab === 'doctor'
+                ? (theme === 'dark' ? '#2dd4bf' : '#0d9488')
+                : (theme === 'dark' ? '#818cf8' : '#4f46e5'),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 10px rgba(0, 0, 0, 0.02)'
+            }}>
+              {activeTab === 'doctor' ? firstAidIcon : walletIcon}
+            </div>
+          </div>
+
+          {/* Form Title */}
+          <h2 style={{
+            fontSize: '1.45rem',
+            fontWeight: 700,
+            textAlign: 'center',
+            color: 'var(--text-primary)',
+            marginBottom: 32,
+            letterSpacing: '-0.01em',
           }}>
-            {t('login.title')}
-          </h1>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            {t('login.subtitle')}
-          </p>
-        </div>
+            {activeTab === 'doctor' 
+              ? (lang === 'vi' ? 'Đăng nhập dành cho Bác sĩ' : 'Doctor Login')
+              : (lang === 'vi' ? 'Đăng nhập dành cho Admin' : 'Admin Login')}
+          </h2>
 
-        {/* Role Tabs */}
-        <div style={{
-          display: 'flex', gap: 0, marginBottom: 24,
-          borderRadius: 'var(--radius-sm)', overflow: 'hidden',
-          border: '1px solid var(--border)',
-        }}>
-          <button
-            onClick={() => { setActiveTab('admin'); setError(''); }}
-            style={{
-              flex: 1, padding: '14px 16px',
-              background: activeTab === 'admin'
-                ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.1))'
-                : 'var(--bg-card)',
-              border: 'none', cursor: 'pointer',
-              color: activeTab === 'admin' ? 'var(--primary)' : 'var(--text-muted)',
-              fontWeight: activeTab === 'admin' ? 700 : 500,
-              fontSize: '0.9rem',
-              borderBottom: activeTab === 'admin' ? '2px solid var(--primary)' : '2px solid transparent',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {t('login.adminTab')}
-          </button>
-          <button
-            onClick={() => { setActiveTab('doctor'); setError(''); }}
-            style={{
-              flex: 1, padding: '14px 16px',
-              background: activeTab === 'doctor'
-                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 182, 212, 0.1))'
-                : 'var(--bg-card)',
-              border: 'none', cursor: 'pointer',
-              color: activeTab === 'doctor' ? 'var(--success)' : 'var(--text-muted)',
-              fontWeight: activeTab === 'doctor' ? 700 : 500,
-              fontSize: '0.9rem',
-              borderBottom: activeTab === 'doctor' ? '2px solid var(--success)' : '2px solid transparent',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {t('login.doctorTab')}
-          </button>
-        </div>
+          {/* Error Message */}
+          {error && (
+            <div className="alert alert-error" style={{ borderRadius: '8px', marginBottom: 20 }}>
+              {error}
+            </div>
+          )}
 
-        {/* Login Card */}
-        <div className="card" style={{ padding: 32 }}>
-          {error && <div className="alert alert-error">{error}</div>}
-
-          {/* =============== ADMIN TAB =============== */}
-          {activeTab === 'admin' && (
-            <div>
-              {/* Admin sub-mode toggle */}
-              <div style={{
-                display: 'flex', gap: 8, marginBottom: 24,
-              }}>
-                <button
-                  onClick={() => { setAdminMode('wallet'); setError(''); }}
-                  className={`btn btn-sm ${adminMode === 'wallet' ? 'btn-primary' : 'btn-ghost'}`}
-                  style={{ flex: 1, fontSize: '0.8rem' }}
-                >
-                  {t('login.connectWallet')}
-                </button>
-                <button
-                  onClick={() => { setAdminMode('invite'); setError(''); }}
-                  className={`btn btn-sm ${adminMode === 'invite' ? 'btn-primary' : 'btn-ghost'}`}
-                  style={{ flex: 1, fontSize: '0.8rem' }}
-                >
-                  {t('login.inviteCode')}
-                </button>
+          {/* =============== DOCTOR FORM =============== */}
+          {activeTab === 'doctor' && (
+            <form onSubmit={handleDoctorLogin}>
+              {/* Username field */}
+              <div style={{ marginBottom: 18 }}>
+                <label className="form-label" style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.82rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  {t('login.username')}
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ position: 'absolute', left: 16, display: 'flex', alignItems: 'center', color: theme === 'dark' ? 'var(--text-secondary)' : '#64748b' }}>
+                    {userIcon}
+                  </div>
+                  <input
+                    id="login-username"
+                    className="login-input"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    placeholder={lang === 'vi' ? 'Nhập mã nhân viên hoặc email' : 'Enter employee ID or email'}
+                    autoFocus
+                  />
+                </div>
               </div>
 
-              {/* Wallet Login */}
+              {/* Password field */}
+              <div style={{ marginBottom: 24 }}>
+                <label className="form-label" style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.82rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  {t('login.password')}
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <div style={{ position: 'absolute', left: 16, display: 'flex', alignItems: 'center', color: theme === 'dark' ? 'var(--text-secondary)' : '#64748b' }}>
+                    {lockIcon}
+                  </div>
+                  <input
+                    id="login-password"
+                    className="login-input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    placeholder="••••••••"
+                  />
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                id="login-submit"
+                className="login-btn"
+                type="submit"
+                disabled={loading || !username || !password}
+              >
+                {loading ? (
+                  <><div className="spinner" style={{ width: 18, height: 18, borderTopColor: '#ffffff' }} /> &nbsp; ...</>
+                ) : (
+                  <>
+                    {lang === 'vi' ? 'ĐĂNG NHẬP' : 'LOGIN'}
+                    {arrowRightIcon}
+                  </>
+                )}
+              </button>
+
+              {/* Forgot Password Link */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
+                <button
+                  type="button"
+                  className="login-link"
+                  onClick={() => alert(t('login.forgotPasswordMsg'))}
+                  style={{ border: 'none', background: 'none', padding: 0 }}
+                >
+                  {t('login.forgotPassword')}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* =============== ADMIN FORM =============== */}
+          {activeTab === 'admin' && (
+            <div>
+              {/* Wallet Mode Login */}
               {adminMode === 'wallet' && (
                 <div>
                   <p style={{
-                    color: 'var(--text-secondary)', fontSize: '0.85rem',
-                    marginBottom: 20, lineHeight: 1.6,
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.85rem',
+                    marginBottom: 24,
+                    lineHeight: 1.6,
+                    textAlign: 'center',
                   }}>
-                    {t('login.walletDesc')}
+                    {lang === 'vi' 
+                      ? 'Sử dụng ví MetaMask để ký xác thực danh tính Admin. Hệ thống sẽ đối chiếu địa chỉ trên hợp đồng thông minh để cho phép truy cập.'
+                      : 'Connect your MetaMask wallet to sign and verify Admin identity. The system cross-references the wallet with the smart contract.'}
                   </p>
 
                   <div style={{
-                    padding: 20, borderRadius: 'var(--radius-sm)',
-                    background: 'rgba(99, 102, 241, 0.05)',
-                    border: '1px solid rgba(99, 102, 241, 0.15)',
-                    marginBottom: 20,
+                    padding: 16,
+                    borderRadius: '8px',
+                    background: theme === 'dark' ? 'rgba(79, 70, 229, 0.05)' : 'rgba(99, 102, 241, 0.04)',
+                    border: `1px solid ${theme === 'dark' ? 'rgba(79, 70, 229, 0.15)' : 'rgba(99, 102, 241, 0.1)'}`,
+                    marginBottom: 24,
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>MetaMask</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.85rem' }}>MetaMask Wallet</span>
                     </div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                       {t('login.walletSteps')}
                     </div>
                   </div>
 
                   <button
                     id="admin-wallet-login"
-                    className="btn btn-primary btn-lg btn-full"
+                    className="login-btn"
                     onClick={handleWalletLogin}
                     disabled={loading || walletConnecting}
-                    style={{
-                      background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-                      border: 'none',
-                    }}
                   >
                     {walletConnecting ? (
                       <>
-                        <div className="spinner" style={{ width: 18, height: 18 }} />
+                        <div className="spinner" style={{ width: 18, height: 18, borderTopColor: '#ffffff' }} /> &nbsp;
                         {walletSigning ? t('login.signing') : t('login.connecting')}
                       </>
                     ) : (
-                      <>{t('login.connectWalletBtn')}</>
+                      <>
+                        {lang === 'vi' ? 'KẾT NỐI VÍ & ĐĂNG NHẬP' : 'CONNECT WALLET & LOGIN'}
+                        {arrowRightIcon}
+                      </>
                     )}
                   </button>
+
+                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
+                    <button
+                      type="button"
+                      className="login-link"
+                      onClick={() => { setAdminMode('invite'); setError(''); }}
+                      style={{ border: 'none', background: 'none', padding: 0 }}
+                    >
+                      {lang === 'vi' ? 'Bạn chưa kích hoạt? Nhập mã mời' : 'Not registered? Enter invite code'}
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* Invite Code Login */}
+              {/* Invite Token Login */}
               {adminMode === 'invite' && (
-                <div>
+                <form onSubmit={handleInviteLogin}>
                   <p style={{
-                    color: 'var(--text-secondary)', fontSize: '0.85rem',
-                    marginBottom: 20, lineHeight: 1.6,
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.85rem',
+                    marginBottom: 20,
+                    lineHeight: 1.6,
                   }}>
                     {t('login.inviteDesc')}
                   </p>
 
-                  <form onSubmit={handleInviteLogin}>
-                    <div className="form-group">
-                      <label className="form-label">{t('login.inviteLabel')}</label>
+                  <div style={{ marginBottom: 24 }}>
+                    <label className="form-label" style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.82rem', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>
+                      {t('login.inviteLabel')}
+                    </label>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <div style={{ position: 'absolute', left: 16, display: 'flex', alignItems: 'center', color: theme === 'dark' ? 'var(--text-secondary)' : '#64748b' }}>
+                        {inviteIcon}
+                      </div>
                       <input
                         id="admin-invite-token"
-                        className="form-input"
+                        className="login-input"
                         type="text"
                         value={inviteToken}
                         onChange={(e) => setInviteToken(e.target.value)}
@@ -307,97 +507,130 @@ export default function LoginPage() {
                         style={{ fontFamily: 'monospace', letterSpacing: 1 }}
                       />
                     </div>
+                  </div>
 
+                  <button
+                    id="admin-invite-submit"
+                    className="login-btn"
+                    type="submit"
+                    disabled={loading || generatingSecret || !inviteToken.trim()}
+                  >
+                    {loading || generatingSecret ? (
+                      <>
+                        <div className="spinner" style={{ width: 18, height: 18, borderTopColor: '#ffffff' }} /> &nbsp;
+                        {generatingSecret ? t('login.generatingSecret') : '...'}
+                      </>
+                    ) : (
+                      <>
+                        {lang === 'vi' ? 'XÁC NHẬN MÃ MỜI' : 'VERIFY INVITE CODE'}
+                        {arrowRightIcon}
+                      </>
+                    )}
+                  </button>
+
+                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
                     <button
-                      id="admin-invite-submit"
-                      className="btn btn-primary btn-lg btn-full"
-                      type="submit"
-                      disabled={loading || generatingSecret || !inviteToken.trim()}
-                      style={{ marginTop: 8 }}
+                      type="button"
+                      className="login-link"
+                      onClick={() => { setAdminMode('wallet'); setError(''); }}
+                      style={{ border: 'none', background: 'none', padding: 0 }}
                     >
-                      {loading || generatingSecret ? (
-                        <>
-                          <div className="spinner" style={{ width: 18, height: 18 }} />
-                          {generatingSecret ? t('login.generatingSecret') : '...'}
-                        </>
-                      ) : (
-                        <>{t('login.inviteBtn')}</>
-                      )}
+                      {lang === 'vi' ? 'Đăng nhập bằng ví Web3' : 'Login using Web3 wallet'}
                     </button>
-                  </form>
-                </div>
+                  </div>
+                </form>
               )}
             </div>
           )}
 
-          {/* =============== DOCTOR TAB =============== */}
-          {activeTab === 'doctor' && (
-            <form onSubmit={handleDoctorLogin}>
-              <div className="form-group">
-                <label className="form-label">{t('login.username')}</label>
-                <input
-                  id="login-username"
-                  className="form-input"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                  autoFocus
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">{t('login.password')}</label>
-                <input
-                  id="login-password"
-                  className="form-input"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-
+          {/* Role Switch Link at the bottom of the card */}
+          <div style={{ 
+            marginTop: 24, 
+            paddingTop: 24, 
+            borderTop: `1px solid ${theme === 'dark' ? '#27272a' : '#f1f5f9'}`,
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            {activeTab === 'doctor' ? (
               <button
-                id="login-submit"
-                className="btn btn-primary btn-lg btn-full"
-                type="submit"
-                disabled={loading || !username || !password}
+                type="button"
+                onClick={() => { setActiveTab('admin'); setError(''); }}
                 style={{
-                  marginTop: 8,
-                  background: 'linear-gradient(135deg, #10b981, #06b6d4)',
                   border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  fontSize: '0.88rem',
+                  fontWeight: 600,
+                  color: theme === 'dark' ? '#818cf8' : '#4f46e5',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
                 }}
               >
-                {loading ? (
-                  <><div className="spinner" style={{ width: 18, height: 18 }} /> ...</>
-                ) : (
-                  t('login.btn')
-                )}
+                {lang === 'vi' ? 'Đăng nhập dành cho Admin (Ví Web3)' : 'Login as Admin (Web3 Wallet)'}
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2.5" fill="none">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
               </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setActiveTab('doctor'); setError(''); }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  fontSize: '0.88rem',
+                  fontWeight: 600,
+                  color: theme === 'dark' ? '#2dd4bf' : '#0d9488',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                {lang === 'vi' ? 'Đăng nhập dành cho Bác sĩ (Tài khoản)' : 'Login as Doctor (Credentials)'}
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2.5" fill="none">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+          </div>
 
-              {/* Quên mật khẩu */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 24 }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => alert(t('login.forgotPasswordMsg'))}
-                  style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}
-                >
-                  {t('login.forgotPassword')}
-                </button>
-              </div>
-            </form>
-          )}
         </div>
 
-        {/* Security badge */}
+        {/* Footer (Links & Copyright) */}
         <div style={{
-          textAlign: 'center', marginTop: 24,
-          fontSize: '0.75rem', color: 'var(--text-muted)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          marginTop: 40,
+          textAlign: 'center',
         }}>
-          {t('login.securityBadge')}
+          {/* Footer links */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: 20,
+            marginBottom: 16,
+          }}>
+            <a href="#security" className="login-link" style={{ fontSize: '0.8rem', color: theme === 'dark' ? '#9ca3af' : '#0d9488' }}>
+              Security Policy
+            </a>
+            <a href="#terms" className="login-link" style={{ fontSize: '0.8rem', color: theme === 'dark' ? '#9ca3af' : '#0d9488' }}>
+              Terms of Service
+            </a>
+            <a href="#help" className="login-link" style={{ fontSize: '0.8rem', color: theme === 'dark' ? '#9ca3af' : '#0d9488' }}>
+              Help Center
+            </a>
+          </div>
+          
+          {/* Copyright */}
+          <p style={{
+            fontSize: '0.78rem',
+            color: 'var(--text-muted)',
+            margin: 0
+          }}>
+            © 2024 Powered by ZKP + Blockchain
+          </p>
         </div>
       </div>
 

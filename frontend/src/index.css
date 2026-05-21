@@ -59,6 +59,26 @@
   --transition-slow: 300ms ease;
 }
 
+html[data-theme="dark"] {
+  --primary: #3B82F6;
+  --primary-subtle: #1E3A5F;
+  --bg: #0B1120;
+  --bg-surface: #111827;
+  --bg-elevated: #1F2937;
+  --border: #1F2937;
+  --border-hover: #374151;
+  --text-primary: #F9FAFB;
+  --text-secondary: #9CA3AF;
+  --text-muted: #6B7280;
+  --text-inverse: #111827;
+  
+  /* Shadows (Dark) */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.4);
+}
+
 /* ============================================
    Reset & Base
    ============================================ */
@@ -357,4 +377,134 @@ body {
     --text-xl: 1.125rem;
     --text-lg: 1rem;
   }
+}
+
+/* ============================================
+   Custom Login Page Styling (Premium Redesign)
+   ============================================ */
+.login-bg {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  background: radial-gradient(circle at center, rgba(99, 102, 241, 0.05) 0%, rgba(99, 102, 241, 0.02) 45%, rgba(0, 0, 0, 0) 80%), var(--bg);
+}
+
+html[data-theme="dark"] .login-bg {
+  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.04) 0%, rgba(59, 130, 246, 0.01) 40%, rgba(0, 0, 0, 0) 70%), var(--bg);
+}
+
+.login-card-container {
+  width: 100%;
+  max-width: 460px;
+  z-index: 10;
+  animation: fadeIn var(--transition-normal);
+}
+
+.login-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 40px;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.01);
+  transition: all 0.3s ease;
+}
+
+html[data-theme="dark"] .login-card {
+  border-color: #1f2937;
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.doctor-mode {
+  --theme-color: #0d9488;
+  --theme-color-hover: #0f766e;
+  --theme-color-subtle: rgba(13, 148, 136, 0.1);
+  --theme-color-focus-ring: rgba(13, 148, 136, 0.15);
+}
+
+.admin-mode {
+  --theme-color: #4f46e5;
+  --theme-color-hover: #4338ca;
+  --theme-color-subtle: rgba(79, 70, 229, 0.1);
+  --theme-color-focus-ring: rgba(79, 70, 229, 0.15);
+}
+
+.login-input {
+  width: 100%;
+  padding: 14px 16px 14px 48px;
+  background: #eff4fc;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+html[data-theme="dark"] .login-input {
+  background: #1f2937;
+  border-color: #374151;
+}
+
+.login-input:focus {
+  border-color: var(--theme-color);
+  box-shadow: 0 0 0 3px var(--theme-color-focus-ring);
+  background: var(--bg-surface);
+}
+
+.login-input::placeholder {
+  color: var(--text-muted);
+}
+
+.login-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  padding: 0 24px;
+  background: var(--theme-color);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: var(--theme-color-hover);
+}
+
+.login-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-link {
+  color: var(--theme-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+  color: var(--theme-color-hover);
 }

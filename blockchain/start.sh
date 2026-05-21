@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Khởi động Hardhat Node ở background
 npx hardhat node --hostname 0.0.0.0 &
@@ -6,7 +6,21 @@ NODE_PID=$!
 
 # Đợi cho tới khi Hardhat node sẵn sàng nhận kết nối RPC
 echo "⏳ Waiting for Hardhat local node to start..."
-until curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' -H "Content-Type: application/json" http://localhost:8545 > /dev/null; do
+until node -e "
+const http = require('http');
+const req = http.request({
+  hostname: '127.0.0.1',
+  port: 8545,
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' }
+}, (res) => {
+  res.on('data', () => {});
+  res.on('end', () => process.exit(0));
+});
+req.on('error', () => process.exit(1));
+req.write(JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }));
+req.end();
+" >/dev/null 2>&1; do
   sleep 1
 done
 
