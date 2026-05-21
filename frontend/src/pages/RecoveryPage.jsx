@@ -179,10 +179,16 @@ export default function RecoveryPage() {
           color: var(--text-muted); margin-bottom: 10px;
         }
 
-        /* --- SỬA LỖI ĐÈ STYLE NÚT METAMASK XẤU XÍ --- */
-        .form-group button, 
-        .form-group .wallet-connect-btn,
-        .form-group [class*="connect"] { 
+        .wallet-connect-wrapper {
+          width: 100%;
+        }
+
+        .wallet-connect-wrapper > div {
+          width: 100%;
+        }
+
+        /* Scope style only to wallet CTA buttons, not the small disconnect icon. */
+        .wallet-connect-wrapper .action-button-core {
           width: 100% !important;
           height: 48px !important;
           background: var(--input-bg) !important;
@@ -199,9 +205,26 @@ export default function RecoveryPage() {
           outline: none !important;
           text-shadow: none !important;
         }
-        .form-group button:hover {
+        .wallet-connect-wrapper .action-button-core:hover {
           background: var(--input-border) !important;
           border-color: var(--text-muted) !important;
+        }
+
+        .wallet-connect-wrapper .disconnect-icon-btn {
+          width: 28px !important;
+          height: 28px !important;
+          min-width: 28px !important;
+          padding: 0 !important;
+          border-radius: 6px !important;
+          background: transparent !important;
+          border: 1px solid rgba(var(--error-color-rgb), 0.15) !important;
+          color: var(--error) !important;
+          box-shadow: none !important;
+        }
+
+        .wallet-connect-wrapper .disconnect-icon-btn:hover {
+          background: rgba(var(--error-color-rgb), 0.08) !important;
+          border-color: rgba(var(--error-color-rgb), 0.25) !important;
         }
 
         /* --- Input fields mượt mà hơn --- */

@@ -1,6 +1,6 @@
 import { useWallet } from '../contexts/WalletContext';
 
-export default function WalletConnect({ onConnect, compact = false }) {
+export default function WalletConnect({ compact = false }) {
   const { address, connecting, error, connect, disconnect } = useWallet();
 
   const handleConnect = async () => {
@@ -71,14 +71,6 @@ export default function WalletConnect({ onConnect, compact = false }) {
           </button>
         </div>
         
-        <button 
-          type="button"
-          className="action-button-core" 
-          onClick={() => onConnect?.(address)}
-          style={{ width: '100%', height: '36px', borderRadius: '8px', fontSize: '0.88rem' }}
-        >
-          Confirm Wallet Destination
-        </button>
       </div>
     );
   }
