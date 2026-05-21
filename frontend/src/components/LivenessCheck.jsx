@@ -12,19 +12,15 @@ import {
 } from '../services/livenessService';
 
 /**
- * LivenessCheck v2 - Simplified architecture
- * 
- * Uses a SINGLE setInterval (80ms) for both face detection + progress tracking.
- * No requestAnimationFrame, no complex ref syncing, no stale closures.
+ * LivenessCheck - Modern Fintech / Apple FaceID Aesthetic
  */
 export default function LivenessCheck({ onLivenessPass, onError }) {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const intervalRef = useRef(null);
   const holdStartRef = useRef(null);
-  const tsCounterRef = useRef(1); // monotonic timestamp for MediaPipe
+  const tsCounterRef = useRef(1);
 
-  // All mutable state in a single ref to avoid stale closures
   const stateRef = useRef({
     directions: [],
     currentIdx: 0,
@@ -32,7 +28,6 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
     allPassed: false,
   });
 
-  // Display-only state (triggers React re-renders for UI)
   const [status, setStatus] = useState('loading');
   const [displayDir, setDisplayDir] = useState('center');
   const [displayProgress, setDisplayProgress] = useState(0);
@@ -40,14 +35,11 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
   const [displayIdx, setDisplayIdx] = useState(0);
   const [faceDetected, setFaceDetected] = useState(false);
   const [distanceWarn, setDistanceWarn] = useState(null);
-  const [message, setMessage] = useState('Đang tải mô hình nhận diện...');
+  const [message, setMessage] = useState('Đang khởi động camera...');
   const [allPassedUI, setAllPassedUI] = useState(false);
-  const [debugInfo, setDebugInfo] = useState({ yaw: 0, pitch: 0, dir: '-' });
 
-  // Generate directions once
   const [directions] = useState(() => generateRandomDirections(3));
 
-  // ── Initialize on mount ──
   useEffect(() => {
     stateRef.current.directions = directions;
     let cancelled = false;
@@ -55,11 +47,9 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
     const start = async () => {
       try {
         setStatus('loading');
-        setMessage('Đang tải mô hình nhận diện khuôn mặt...');
         await initFaceMesh();
 
         if (cancelled) return;
-        setMessage('Đang mở camera...');
 
         const mediaStream = await navigator.mediaDevices.getUserMedia({
           video: { width: 640, height: 480, facingMode: 'user' },
@@ -76,7 +66,6 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
           videoRef.current.play().catch(() => {});
         }
 
-        // Wait for video to be ready
         await new Promise(resolve => {
           const check = () => {
             if (videoRef.current && videoRef.current.readyState >= 2) {
@@ -90,14 +79,13 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
 
         if (cancelled) return;
         setStatus('active');
-        setMessage('');
+        setMessage('Hãy đưa khuôn mặt vào trong khung hình');
 
-        // Start the SINGLE detection+progress interval
         startLoop();
       } catch (err) {
         if (!cancelled) {
           setStatus('error');
-          setMessage('Lỗi: ' + (err.message || 'Không thể khởi tạo camera'));
+          setMessage('Không thể truy cập camera. Vui lòng kiểm tra quyền.');
           onError?.(err.message);
         }
       }
@@ -116,7 +104,6 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── SINGLE interval: Detection + Progress ──
   const startLoop = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
 
@@ -126,7 +113,6 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
         if (s.allPassed) return;
         if (!videoRef.current || videoRef.current.readyState < 2) return;
 
-        // Use monotonic counter as timestamp (avoids MediaPipe timestamp issues)
         tsCounterRef.current += 80;
         const landmarks = detectLandmarks(videoRef.current, tsCounterRef.current);
 
@@ -134,42 +120,42 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
           setFaceDetected(false);
           setDisplayDir('center');
           setDistanceWarn(null);
-          setDebugInfo(prev => ({ ...prev, dir: 'NO-FACE' }));
           holdStartRef.current = null;
           setDisplayProgress(0);
+          setMessage('Không tìm thấy khuôn mặt');
           return;
         }
 
         setFaceDetected(true);
 
-        // Check distance
         const dist = checkFaceDistance(landmarks);
         if (dist === 'TOO_FAR') {
-          setDistanceWarn('⚠️ Hãy đưa khuôn mặt gần màn hình hơn');
+          setDistanceWarn('Vui lòng tiến gần hơn');
+          setMessage('Vui lòng tiến gần hơn');
           holdStartRef.current = null;
           setDisplayProgress(0);
           return;
         }
         if (dist === 'TOO_CLOSE') {
-          setDistanceWarn('⚠️ Hãy lùi khuôn mặt ra xa hơn');
+          setDistanceWarn('Vui lòng lùi ra xa một chút');
+          setMessage('Vui lòng lùi ra xa một chút');
           holdStartRef.current = null;
           setDisplayProgress(0);
           return;
         }
         setDistanceWarn(null);
 
-        // Compute head direction
         const { yawRatio, pitchRatio } = computeHeadPose(landmarks);
         const dir = classifyDirection(yawRatio, pitchRatio);
         setDisplayDir(dir);
-        setDebugInfo({ yaw: yawRatio, pitch: pitchRatio, dir: dir.toUpperCase() });
 
-        // ── Progress tracking (inline, no separate timer) ──
         const targetDir = s.directions[s.currentIdx];
         if (!targetDir) return;
 
+        const info = getDirectionInfo(targetDir);
+        setMessage(info.instruction);
+
         if (dir === targetDir) {
-          // Correct direction!
           if (!holdStartRef.current) {
             holdStartRef.current = performance.now();
           }
@@ -178,31 +164,28 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
           setDisplayProgress(pct);
 
           if (elapsed >= THRESHOLDS.HOLD_DURATION) {
-            // ✅ Direction passed!
             s.passedDirs.push(targetDir);
             setDisplayPassed([...s.passedDirs]);
             setDisplayProgress(0);
             holdStartRef.current = null;
 
             if (s.currentIdx + 1 >= s.directions.length) {
-              // All done!
               s.allPassed = true;
               setAllPassedUI(true);
-              setMessage('✅ Xác thực người thật thành công!');
+              setMessage('Xác thực thành công');
             } else {
               s.currentIdx++;
               setDisplayIdx(s.currentIdx);
             }
           }
         } else {
-          // Wrong direction - reset hold timer
           holdStartRef.current = null;
           setDisplayProgress(0);
         }
       } catch (err) {
-        console.error('[Liveness] Loop error (continues):', err.message);
+        console.error('[Liveness] Loop error:', err.message);
       }
-    }, 80); // ~12fps - stable and reliable
+    }, 80);
   };
 
   const stopLoop = () => {
@@ -212,298 +195,227 @@ export default function LivenessCheck({ onLivenessPass, onError }) {
     }
   };
 
-  // ── Trigger callback when all passed ──
   useEffect(() => {
     if (allPassedUI && videoRef.current) {
       const timer = setTimeout(() => {
         onLivenessPass?.(videoRef.current);
-      }, 1200);
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [allPassedUI, onLivenessPass]);
 
-  // ── Derived UI ──
-  const currentDirection = directions[displayIdx];
-  const currentInfo = currentDirection ? getDirectionInfo(currentDirection) : null;
+  // ============================================================
+  // Soft Geometric Icons
+  // ============================================================
+  const successShield = (
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <polyline points="9 12 11 14 15 10"/>
+    </svg>
+  );
 
-  const ovalColor =
-    allPassedUI ? '#10b981' :
-    !faceDetected ? 'rgba(255,255,255,0.3)' :
-    distanceWarn ? '#ef4444' :
-    displayProgress > 0 ? '#6366f1' :
-    'rgba(255,255,255,0.5)';
+  const renderArrow = (direction) => {
+    const rotationMap = { right: 0, down: 90, left: 180, up: 270 };
+    const rotation = rotationMap[direction] ?? 0;
+    return (
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: `rotate(${rotation}deg)`, transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+        <line x1="4" y1="12" x2="20" y2="12" />
+        <polyline points="14 6 20 12 14 18" />
+      </svg>
+    );
+  };
+
+  // Determine the dynamic border color
+  const getRingColor = () => {
+    if (status === 'loading') return '#cbd5e1';
+    if (allPassedUI) return '#10b981'; // Success Green
+    if (distanceWarn || (!faceDetected && status === 'active')) return '#ef4444'; // Error Red
+    if (displayProgress > 0) return '#3b82f6'; // Action Blue
+    return '#e2e8f0'; // Default Neutral
+  };
+
+  const ringColor = getRingColor();
+  const currentDirection = directions[displayIdx];
 
   return (
-    <div style={containerStyle}>
-      {/* Header */}
-      <div style={headerStyle}>
-        <span style={{ fontSize: 24 }}>🔒</span>
-        <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>Xác thực khuôn mặt</span>
+    <div className="liveness-fintech-card">
+      <style>{`
+        .liveness-fintech-card {
+          width: 100%; max-width: 400px; margin: 0 auto;
+          background: var(--bg-card, #ffffff);
+          border-radius: 24px;
+          padding: 32px 20px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0,0,0,0.02);
+          display: flex; flex-direction: column; align-items: center;
+          border: 1px solid var(--border-color, #f1f5f9);
+        }
+
+        .fintech-title {
+          font-size: 1.15rem; font-weight: 700; color: var(--text-main, #0f172a);
+          margin-bottom: 28px; text-align: center; letter-spacing: -0.01em;
+        }
+
+        .camera-oval-pod {
+          position: relative;
+          width: 240px; height: 320px;
+          border-radius: 160px; /* Makes it a perfect pill/oval */
+          background: #f8fafc;
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 0 0 6px var(--bg-card, #ffffff), 0 0 0 8px ${ringColor}, 0 20px 40px rgba(0,0,0,0.08);
+          transition: box-shadow 0.4s ease;
+          z-index: 10;
+        }
+
+        /* Pulse animation when scanning properly */
+        .camera-oval-pod.scanning {
+          animation: podPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes podPulse {
+          0%, 100% { box-shadow: 0 0 0 6px var(--bg-card, #ffffff), 0 0 0 8px #3b82f6, 0 20px 40px rgba(59, 130, 246, 0.15); }
+          50% { box-shadow: 0 0 0 6px var(--bg-card, #ffffff), 0 0 0 12px rgba(59, 130, 246, 0.4), 0 20px 40px rgba(59, 130, 246, 0.25); }
+        }
+
+        .hardware-feed-clean {
+          width: 100%; height: 100%; object-fit: cover;
+          border-radius: 160px; transform: scaleX(-1);
+          opacity: ${status === 'loading' ? '0' : '1'};
+          transition: opacity 0.5s ease;
+        }
+
+        .instruction-text {
+          margin-top: 32px; font-size: 1.05rem; font-weight: 600;
+          color: var(--text-main, #1e293b); text-align: center;
+          min-height: 28px; display: flex; align-items: center; justify-content: center; gap: 8px;
+          transition: color 0.3s ease;
+        }
+        .instruction-text.warn { color: #ef4444; }
+        .instruction-text.success { color: #10b981; }
+
+        .progress-dots-container {
+          display: flex; gap: 12px; margin-top: 24px;
+        }
+        .progress-dot {
+          width: 10px; height: 10px; border-radius: 50%;
+          background: #e2e8f0; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .progress-dot.passed { background: #10b981; transform: scale(1.1); }
+        .progress-dot.active { background: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); }
+
+        .loading-glass {
+          position: absolute; inset: 0; border-radius: 160px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          background: rgba(255,255,255,0.8); backdrop-filter: blur(4px); z-index: 20;
+        }
+
+        .success-glass {
+          position: absolute; inset: 0; border-radius: 160px;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          background: rgba(255,255,255,0.9); backdrop-filter: blur(8px); z-index: 20;
+          animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+        .spinner-clean {
+          width: 36px; height: 36px; border: 3px solid #e2e8f0; border-top-color: #3b82f6;
+          border-radius: 50%; animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Floating Arrow */
+        .floating-arrow {
+          position: absolute; background: #ffffff; color: #3b82f6;
+          border-radius: 50%; width: 48px; height: 48px;
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 15;
+          animation: floatArrow 1.5s ease-in-out infinite;
+        }
+        @keyframes floatArrow { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(0, -6px); } }
+
+        .floating-arrow.left { left: -24px; top: 50%; margin-top: -24px; animation: floatLeft 1.5s ease-in-out infinite; }
+        .floating-arrow.right { right: -24px; top: 50%; margin-top: -24px; animation: floatRight 1.5s ease-in-out infinite; }
+        .floating-arrow.up { top: -24px; left: 50%; margin-left: -24px; animation: floatUp 1.5s ease-in-out infinite; }
+        .floating-arrow.down { bottom: -24px; left: 50%; margin-left: -24px; animation: floatDown 1.5s ease-in-out infinite; }
+
+        @keyframes floatLeft { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-6px); } }
+        @keyframes floatRight { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
+        @keyframes floatUp { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        @keyframes floatDown { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
+      `}</style>
+
+      <div className="fintech-title">
+        Xác minh danh tính
       </div>
 
-      {/* Camera + Oval */}
-      <div style={cameraContainerStyle}>
-        <video ref={videoRef} style={videoStyle} muted playsInline />
+      <div className={`camera-oval-pod ${displayProgress > 0 && !allPassedUI ? 'scanning' : ''}`}>
+        <video ref={videoRef} className="hardware-feed-clean" muted playsInline />
 
-        {/* Oval mask */}
-        <div style={ovalMaskStyle}>
-          <div style={{
-            ...ovalFrameStyle,
-            borderColor: ovalColor,
-            boxShadow: `0 0 20px ${ovalColor}40, inset 0 0 20px ${ovalColor}15`,
-          }} />
-        </div>
-
-        {/* Dark corners */}
-        <svg style={svgMaskStyle} viewBox="0 0 100 100" preserveAspectRatio="none">
-          <defs>
-            <mask id="ovalMask">
-              <rect x="0" y="0" width="100" height="100" fill="white" />
-              <ellipse cx="50" cy="50" rx="35" ry="45" fill="black" />
-            </mask>
-          </defs>
-          <rect x="0" y="0" width="100" height="100" fill="rgba(0,0,0,0.6)" mask="url(#ovalMask)" />
-        </svg>
-
-        {/* Direction arrow */}
-        {status === 'active' && !allPassedUI && currentInfo && faceDetected && !distanceWarn && (
-          <div style={{
-            ...arrowOverlayStyle,
-            ...(currentDirection === 'left' ? { left: 16, top: '50%', transform: 'translateY(-50%)' } :
-               currentDirection === 'right' ? { right: 16, top: '50%', transform: 'translateY(-50%)' } :
-               currentDirection === 'up' ? { top: 16, left: '50%', transform: 'translateX(-50%)' } :
-               { bottom: 16, left: '50%', transform: 'translateX(-50%)' }),
-          }}>
-            <span style={arrowTextStyle}>{currentInfo.arrow}</span>
-          </div>
-        )}
-
-        {/* Loading */}
         {status === 'loading' && (
-          <div style={loadingOverlayStyle}>
-            <div className="spinner" style={{ width: 48, height: 48, borderWidth: 4 }} />
-            <p style={{ color: '#a5b4fc', marginTop: 16, fontSize: '0.9rem' }}>{message}</p>
+          <div className="loading-glass">
+            <div className="spinner-clean" />
           </div>
         )}
 
-        {/* Success */}
         {allPassedUI && (
-          <div style={successOverlayStyle}>
-            <div style={successIconStyle}>✅</div>
-            <p style={{ color: '#a7f3d0', fontWeight: 700, fontSize: '1.1rem' }}>
-              Xác thực thành công!
-            </p>
+          <div className="success-glass">
+            {successShield}
           </div>
         )}
 
-        {/* Debug overlay */}
-        {status === 'active' && !allPassedUI && (
-          <div style={{
-            position: 'absolute', bottom: 8, left: 8,
-            background: 'rgba(0,0,0,0.8)', color: '#a5b4fc',
-            fontSize: '0.65rem', fontFamily: 'monospace',
-            padding: '4px 8px', borderRadius: 6, zIndex: 15, lineHeight: 1.6,
-          }}>
-            <div>YAW: {debugInfo.yaw.toFixed(3)} | PITCH: {debugInfo.pitch.toFixed(3)}</div>
-            <div>Dir: <span style={{ color: debugInfo.dir !== 'CENTER' && debugInfo.dir !== 'NO-FACE' ? '#10b981' : '#fca5a5', fontWeight: 700 }}>{debugInfo.dir}</span></div>
-            <div>Target: {currentDirection?.toUpperCase() || '-'}</div>
+        {/* Floating Direction Arrow */}
+        {status === 'active' && !allPassedUI && faceDetected && !distanceWarn && currentDirection && (
+          <div className={`floating-arrow ${currentDirection}`}>
+            {renderArrow(currentDirection)}
           </div>
         )}
       </div>
 
-      {/* Distance warning */}
-      {distanceWarn && status === 'active' && !allPassedUI && (
-        <div style={warningStyle}>{distanceWarn}</div>
-      )}
+      {/* Main Instruction Area */}
+      <div className={`instruction-text ${distanceWarn || !faceDetected ? 'warn' : allPassedUI ? 'success' : ''}`}>
+        {message}
+      </div>
 
-      {/* No face warning */}
-      {!faceDetected && status === 'active' && !allPassedUI && !distanceWarn && (
-        <div style={warningStyle}>⚠️ Không tìm thấy khuôn mặt</div>
-      )}
-
-      {/* Instruction */}
-      {status === 'active' && !allPassedUI && currentInfo && faceDetected && !distanceWarn && (
-        <div style={instructionStyle}>
-          <span style={instructionArrowStyle}>{currentInfo.arrow}</span>
-          <span>{currentInfo.instruction}</span>
-        </div>
-      )}
-
-      {/* Progress bar */}
-      {status === 'active' && !allPassedUI && (
-        <div style={progressContainerStyle}>
-          <div style={progressTrackStyle}>
-            <div style={{
-              ...progressBarStyle,
-              width: `${displayProgress}%`,
-              background: displayProgress > 80 ?
-                'linear-gradient(90deg, #6366f1, #10b981)' :
-                'linear-gradient(90deg, #6366f1, #818cf8)',
-            }} />
-          </div>
-          <span style={progressLabelStyle}>
-            {displayPassed.length}/{directions.length}
-          </span>
-        </div>
-      )}
-
-      {/* Direction status pills */}
+      {/* Clean Progress Dots */}
       {status === 'active' && directions.length > 0 && (
-        <div style={dirStatusContainerStyle}>
+        <div className="progress-dots-container">
           {directions.map((dir, idx) => {
-            const info = getDirectionInfo(dir);
             const isPassed = displayPassed.includes(dir);
             const isCurrent = idx === displayIdx && !allPassedUI;
             return (
-              <div key={dir} style={{
-                ...dirStatusItemStyle,
-                borderColor: isPassed ? '#10b981' : isCurrent ? '#6366f1' : 'rgba(255,255,255,0.1)',
-                background: isPassed ? 'rgba(16, 185, 129, 0.1)' : isCurrent ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255,255,255,0.03)',
-                color: isPassed ? '#a7f3d0' : isCurrent ? '#a5b4fc' : 'rgba(255,255,255,0.3)',
-              }}>
-                <span>{isPassed ? '✅' : isCurrent ? '🔄' : '⬜'}</span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{info.labelVi}</span>
-              </div>
+              <div 
+                key={`${dir}-${idx}`} 
+                className={`progress-dot ${isPassed ? 'passed' : isCurrent ? 'active' : ''}`} 
+              />
             );
           })}
         </div>
       )}
 
-      {/* Error state */}
-      {status === 'error' && (
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <p style={{ color: '#ef4444', fontSize: '0.9rem', marginBottom: 12 }}>{message}</p>
-          <button className="btn btn-primary" onClick={() => window.location.reload()} type="button">
-            🔄 Thử lại
-          </button>
+      {/* Smooth Progress Bar for Hold Duration (Optional visual flair) */}
+      {status === 'active' && !allPassedUI && (
+        <div style={{ width: '120px', height: '4px', background: '#f1f5f9', borderRadius: '2px', marginTop: '20px', overflow: 'hidden' }}>
+          <div style={{ 
+            height: '100%', 
+            background: '#3b82f6', 
+            width: `${displayProgress}%`, 
+            transition: 'width 0.1s linear',
+            borderRadius: '2px'
+          }} />
         </div>
+      )}
+
+      {/* Error Fallback */}
+      {status === 'error' && (
+        <button 
+          onClick={() => window.location.reload()} 
+          style={{
+            marginTop: 24, padding: '10px 24px', borderRadius: '12px',
+            background: '#eff6ff', color: '#2563eb', border: 'none',
+            fontWeight: 600, cursor: 'pointer', fontSize: '0.9rem'
+          }}
+        >
+          Thử lại
+        </button>
       )}
     </div>
   );
-}
-
-// ── Styles ──────────────────────────────────────────────────────────
-
-const containerStyle = { width: '100%', maxWidth: 480, margin: '0 auto' };
-
-const headerStyle = {
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  gap: 8, marginBottom: 16, color: '#e2e8f0',
-};
-
-const cameraContainerStyle = {
-  position: 'relative', width: '100%', aspectRatio: '3 / 4',
-  borderRadius: 20, overflow: 'hidden', background: '#0a0a0a',
-  border: '2px solid rgba(255,255,255,0.1)',
-};
-
-const videoStyle = {
-  width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)',
-};
-
-const ovalMaskStyle = {
-  position: 'absolute', inset: 0,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  pointerEvents: 'none',
-};
-
-const ovalFrameStyle = {
-  width: '70%', height: '90%', borderRadius: '50%',
-  border: '3px solid', transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-};
-
-const svgMaskStyle = {
-  position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none',
-};
-
-const arrowOverlayStyle = {
-  position: 'absolute', zIndex: 5,
-  animation: 'liveness-pulse 1.2s ease-in-out infinite',
-};
-
-const arrowTextStyle = {
-  fontSize: 48, color: '#6366f1',
-  textShadow: '0 0 20px rgba(99, 102, 241, 0.5)', fontWeight: 900,
-};
-
-const loadingOverlayStyle = {
-  position: 'absolute', inset: 0,
-  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  background: 'rgba(0,0,0,0.7)', zIndex: 10,
-};
-
-const successOverlayStyle = {
-  position: 'absolute', inset: 0,
-  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  background: 'rgba(0,0,0,0.5)', zIndex: 10,
-};
-
-const successIconStyle = {
-  fontSize: 72, marginBottom: 12,
-  animation: 'liveness-success 0.5s ease-out',
-};
-
-const warningStyle = {
-  textAlign: 'center', marginTop: 12, padding: '10px 16px', borderRadius: 8,
-  background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
-  color: '#fca5a5', fontSize: '0.9rem', fontWeight: 600,
-};
-
-const instructionStyle = {
-  textAlign: 'center', marginTop: 12, padding: '12px 16px', borderRadius: 8,
-  background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)',
-  color: '#a5b4fc', fontSize: '1.05rem', fontWeight: 700,
-  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-};
-
-const instructionArrowStyle = {
-  fontSize: '1.4rem', animation: 'liveness-pulse 1.2s ease-in-out infinite',
-};
-
-const progressContainerStyle = {
-  display: 'flex', alignItems: 'center', gap: 10, marginTop: 12,
-};
-
-const progressTrackStyle = {
-  flex: 1, height: 8, borderRadius: 4,
-  background: 'rgba(255,255,255,0.08)', overflow: 'hidden',
-};
-
-const progressBarStyle = {
-  height: '100%', borderRadius: 4, transition: 'width 0.1s linear',
-};
-
-const progressLabelStyle = {
-  fontSize: '0.8rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)',
-  minWidth: 30, textAlign: 'right',
-};
-
-const dirStatusContainerStyle = {
-  display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap',
-};
-
-const dirStatusItemStyle = {
-  display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px',
-  borderRadius: 8, border: '1px solid', transition: 'all 0.3s ease',
-};
-
-// Inject keyframe animations
-if (typeof document !== 'undefined') {
-  const styleId = 'liveness-check-animations';
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      @keyframes liveness-pulse {
-        0%, 100% { opacity: 1; transform: scale(1) translateY(-50%); }
-        50% { opacity: 0.6; transform: scale(1.15) translateY(-50%); }
-      }
-      @keyframes liveness-success {
-        0% { transform: scale(0); opacity: 0; }
-        50% { transform: scale(1.2); }
-        100% { transform: scale(1); opacity: 1; }
-      }
-    `;
-    document.head.appendChild(style);
-  }
 }

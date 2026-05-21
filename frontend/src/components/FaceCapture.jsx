@@ -3,12 +3,7 @@ import { loadModels, detectFace } from '../services/faceService';
 import LivenessCheck from './LivenessCheck';
 
 /**
- * FaceCapture component with optional liveness detection
- * 
- * When requireLiveness=true (default): Uses LivenessCheck with MediaPipe for
- * Agribank-style head direction challenges, then extracts face embedding via face-api.js
- * 
- * When requireLiveness=false: Legacy mode with upload/camera (for demo/testing)
+ * FaceCapture component with premium balanced layout and no emojis
  */
 export default function FaceCapture({ onCapture, onError, autoStart = false, requireLiveness = true }) {
   const videoRef = useRef(null);
@@ -18,7 +13,7 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
   const [status, setStatus] = useState('idle');
   const [stream, setStream] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [message, setMessage] = useState('Choose an option to begin.');
+  const [message, setMessage] = useState('Select an option to initialize system.');
   const [extractingEmbedding, setExtractingEmbedding] = useState(false);
 
   useEffect(() => {
@@ -30,19 +25,15 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
   const handleLivenessPass = async (videoElement) => {
     setExtractingEmbedding(true);
     try {
-      // Load face-api.js models
       await loadModels();
-
-      // Extract 128-dim face embedding from the current video frame
       const embedding = await detectFace(videoElement);
 
       if (!embedding) {
-        // Retry once with a small delay
         await new Promise(r => setTimeout(r, 500));
         const retry = await detectFace(videoElement);
         if (!retry) {
           setExtractingEmbedding(false);
-          onError?.('Không thể trích xuất face embedding. Vui lòng thử lại.');
+          onError?.('Could not extract face identity. Please try again.');
           return;
         }
         onCapture?.(retry);
@@ -50,7 +41,7 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
         onCapture?.(embedding);
       }
     } catch (err) {
-      onError?.('Lỗi trích xuất face embedding: ' + err.message);
+      onError?.('Extraction error: ' + err.message);
     } finally {
       setExtractingEmbedding(false);
     }
@@ -59,11 +50,11 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
   // ── Legacy camera mode (requireLiveness=false) ──
   const startCamera = async () => {
     setStatus('loading');
-    setMessage('Loading face recognition models...');
+    setMessage('Loading core identification models...');
 
     try {
       await loadModels();
-      setMessage('Accessing camera...');
+      setMessage('Requesting hardware access...');
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { width: 640, height: 480, facingMode: 'user' },
@@ -72,16 +63,16 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
         videoRef.current.play().catch(e => {
-          if (e.name !== 'AbortError') console.warn('Camera play error:', e);
+          if (e.name !== 'AbortError') console.warn('Camera context aborted:', e);
         });
       }
 
       setStream(mediaStream);
       setStatus('ready');
-      setMessage('Camera ready. Click "Scan Face" to capture.');
+      setMessage('Biometric feed is active. Ready to analyze.');
     } catch (err) {
       setStatus('error');
-      setMessage(err.message || 'Failed to start camera');
+      setMessage(err.message || 'Hardware initialization failed');
       onError?.(err.message);
     }
   };
@@ -99,7 +90,7 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
     if (!file) return;
 
     setStatus('loading');
-    setMessage('Loading models...');
+    setMessage('Processing file matrix...');
     try {
       await loadModels();
       
@@ -107,12 +98,12 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
       reader.onload = () => {
         setPreviewUrl(reader.result);
         setStatus('ready');
-        setMessage('Image loaded successfully. Click "Scan Uploaded Image" below.');
+        setMessage('Static image source loaded into memory.');
       };
       reader.readAsDataURL(file);
     } catch (err) {
       setStatus('error');
-      setMessage('Model load failed: ' + err.message);
+      setMessage('Failed to process structure: ' + err.message);
       onError?.(err.message);
     }
   };
@@ -122,217 +113,191 @@ export default function FaceCapture({ onCapture, onError, autoStart = false, req
     if (!elementToScan) return;
 
     setStatus('scanning');
-    setMessage(mode === 'camera' ? 'Scanning face from camera...' : 'Analyzing uploaded photo...');
+    setMessage('Executing node matching array...');
 
     try {
       const embedding = await detectFace(elementToScan);
 
       if (!embedding) {
         setStatus('ready');
-        setMessage(
-          mode === 'camera' 
-            ? 'No face detected in video feed. Please try again.' 
-            : 'No face detected in the photo. Please upload a clear, front-facing portrait.'
-        );
+        setMessage('Vector generation failed. No recognizable feature mapping found.');
         return;
       }
 
       setStatus('captured');
-      setMessage('Face analyzed successfully! ✅');
+      setMessage('Identity data set generated and synchronized.');
       onCapture?.(embedding);
     } catch (err) {
       setStatus('error');
-      setMessage('Face scan failed: ' + err.message);
+      setMessage('Verification fault: ' + err.message);
       onError?.(err.message);
     }
   };
 
-  // ── LIVENESS MODE ──
+  // State Color Matrix Mapping for Premium UI Boundaries
+  const stateBorderColor = () => {
+    if (status === 'error') return 'var(--danger, #ef4444)';
+    if (status === 'captured') return 'var(--success, #10b981)';
+    if (status === 'scanning' || status === 'loading') return 'var(--primary-adm, #4f46e5)';
+    return 'var(--input-border, #cbd5e1)';
+  };
+
+  // ── LIVENESS MODE VIEW ──
   if (requireLiveness) {
     return (
-      <div style={{ width: '100%', position: 'relative' }}>
-        <LivenessCheck
-          onLivenessPass={handleLivenessPass}
-          onError={onError}
-        />
+      <div style={{ width: '100%', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+          <LivenessCheck
+            onLivenessPass={handleLivenessPass}
+            onError={onError}
+          />
+        </div>
         {extractingEmbedding && (
           <div style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(0,0,0,0.85)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 50,
-            borderRadius: 20,
+            position: 'absolute', inset: 0,
+            background: 'rgba(15, 23, 42, 0.95)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            zIndex: 50, borderRadius: 16, border: '1px solid var(--card-border, rgba(255,255,255,0.08))'
           }}>
-            <div className="spinner" style={{ width: 48, height: 48, borderWidth: 4 }} />
-            <p style={{ marginTop: 16, color: '#a7f3d0', fontWeight: 700, fontSize: '1.1rem' }}>
-              Đang trích xuất mã hóa khuôn mặt...
+            <div className="processing-spinner" />
+            <p style={{ marginTop: 16, color: 'var(--text-main)', fontWeight: 600, fontSize: '0.95rem', letterSpacing: '-0.01em' }}>
+              Extracting cryptographic face token...
             </p>
           </div>
         )}
+        <style>{`
+          .processing-spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--primary-adm, #4f46e5);
+            animation: spinLoop 0.8s linear infinite;
+          }
+          @keyframes spinLoop { to { transform: rotate(360deg); } }
+        `}</style>
       </div>
     );
   }
 
-  // ── LEGACY MODE (requireLiveness=false) ──
-  const statusColors = {
-    idle: 'var(--text-muted)',
-    loading: 'var(--warning)',
-    ready: 'var(--accent)',
-    scanning: 'var(--warning)',
-    captured: 'var(--success)',
-    error: 'var(--danger)',
-  };
-
+  // ── LEGACY MODE VIEW (requireLiveness=false) ──
   return (
-    <div style={{ width: '100%' }}>
-      {/* Mode Selector Tabs */}
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 20 }}>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <style>{`
+        .tab-segment-bar { display: flex; gap: 8px; width: 100%; max-width: 320px; margin-bottom: 24px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 8px; }
+        .tab-trigger { flex: 1; height: 36px; border: none; background: transparent; border-radius: 6px; color: var(--text-muted); font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+        .tab-trigger.active { background: var(--input-bg, #fff); color: var(--text-main); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        
+        .viewscreen-viewport {
+          position: relative; width: 100%; max-width: 440px; border-radius: 12px; overflow: hidden;
+          background: #090d16; aspect-ratio: 4/3; transition: border-color 0.25s ease; display: flex; align-items: center; justify-content: center;
+        }
+        .placeholder-state-ui { display: flex; flex-direction: column; align-items: center; gap: 8px; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
+        
+        .internal-action-row { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; margin-top: 20px; align-items: center; }
+        .hidden-file-input { display: none; }
+        
+        .legacy-feedback-msg { text-align: center; margin: 16px 0 0 0; font-size: 0.88rem; font-weight: 600; min-height: 20px; width: 100%; max-width: 440px; }
+      `}</style>
+
+      {/* Symmetric Controlled Segment Tabs */}
+      <div className="tab-segment-bar">
         <button
-          type="button"
-          className={`btn ${mode === 'upload' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => { setMode('upload'); stopCamera(); setPreviewUrl(null); setStatus('idle'); setMessage('Please select a photo file.'); }}
+          type="button" className={`tab-trigger ${mode === 'upload' ? 'active' : ''}`}
+          onClick={() => { setMode('upload'); stopCamera(); setPreviewUrl(null); setStatus('idle'); setMessage('Select source image file.'); }}
         >
-          📁 Upload Photo
+          Upload Source
         </button>
         <button
-          type="button"
-          className={`btn ${mode === 'camera' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => { setMode('camera'); setPreviewUrl(null); setStatus('idle'); setMessage('Click "Start Camera" below.'); }}
+          type="button" className={`tab-trigger ${mode === 'camera' ? 'active' : ''}`}
+          onClick={() => { setMode('camera'); setPreviewUrl(null); setStatus('idle'); setMessage('Initialize real-time camera node.'); }}
         >
-          📷 Live Camera
+          Live Console
         </button>
       </div>
 
-      {/* Capture Screen Container */}
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        maxWidth: 480,
-        margin: '0 auto',
-        borderRadius: 'var(--radius-lg)',
-        overflow: 'hidden',
-        border: `2px solid ${statusColors[status]}`,
-        background: '#000',
-        aspectRatio: '4/3',
-        transition: 'border-color 0.3s ease',
-      }}>
-        {/* Mode 1: Camera Feed */}
-        {mode === 'camera' && (
+      {/* Unified Screen Frame Geometry */}
+      <div className="viewscreen-viewport" style={{ border: `2px solid ${stateBorderColor()}` }}>
+        {mode === 'camera' && stream && (
           <video
             ref={videoRef}
             style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
-            muted
-            playsInline
+            muted playsInline
           />
         )}
 
-        {/* Mode 2: Upload Preview */}
         {mode === 'upload' && previewUrl && (
           <img
-            ref={imageRef}
-            src={previewUrl}
-            alt="Face Preview"
+            ref={imageRef} src={previewUrl} alt="Matrix Registration Source"
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         )}
 
-        {/* Overlay Spinner / Inactive placeholder */}
         {status === 'scanning' && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.3)',
-          }}>
-            <div className="spinner" style={{ width: 48, height: 48, borderWidth: 4 }} />
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifycontent: 'center', background: 'rgba(9,13,22,0.6)' }}>
+            <div className="processing-spinner" />
           </div>
         )}
 
-        {((mode === 'camera' && (status === 'idle' || status === 'loading')) || 
+        {((mode === 'camera' && (!stream || status === 'loading')) || 
           (mode === 'upload' && !previewUrl)) && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.7)', flexDirection: 'column', gap: 12,
-          }}>
-            <span style={{ fontSize: 48 }}>{mode === 'camera' ? '📷' : '📁'}</span>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              {mode === 'camera' 
-                ? (status === 'loading' ? 'Initializing...' : 'Camera inactive') 
-                : 'No image uploaded yet'}
-            </span>
+          <div className="placeholder-state-ui">
+            <span>{mode === 'camera' ? 'Camera Node Offline' : 'No Source Detected'}</span>
           </div>
         )}
       </div>
 
-      {/* Message feedback */}
-      <p style={{
-        textAlign: 'center', marginTop: 12,
-        color: statusColors[status], fontSize: '0.9rem', fontWeight: 500,
-        minHeight: 24,
-      }}>
+      {/* Perfect Centered Feedback Message Area */}
+      <p className="legacy-feedback-msg" style={{ color: stateBorderColor() }}>
         {message}
       </p>
 
-      {/* Controls Container */}
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 12, flexDirection: 'column', alignItems: 'center' }}>
-        
-        {/* Upload Mode Inputs */}
+      {/* Symmetric Structural Bottom Controls */}
+      <div className="internal-action-row">
         {mode === 'upload' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', alignItems: 'center' }}>
-            <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
-              📁 Choose Photo File
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleFileChange} 
-                style={{ display: 'none' }} 
-              />
+          <>
+            <label className="action-button-core" style={{ background: 'var(--input-border, #cbd5e1)', color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '40px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600 }}>
+              Browse System Directory
+              <input type="file" accept="image/*" onChange={handleFileChange} className="hidden-file-input" />
             </label>
             
             {previewUrl && status === 'ready' && (
-              <button className="btn btn-success btn-lg" onClick={scanFace}>
-                🔍 Scan Uploaded Image
+              <button className="action-button-core" style={{ width: '100%', height: '40px', borderRadius: '8px' }} onClick={scanFace}>
+                Execute Authentication Vector
               </button>
             )}
-          </div>
+          </>
         )}
 
-        {/* Camera Mode Inputs */}
         {mode === 'camera' && (
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 10, width: '100%' }}>
             {status === 'idle' && (
-              <button className="btn btn-primary" onClick={startCamera}>
-                📷 Start Camera
+              <button className="action-button-core" style={{ width: '100%', height: '40px', borderRadius: '8px' }} onClick={startCamera}>
+                Power On Camera
               </button>
             )}
             {status === 'ready' && (
-              <button className="btn btn-success btn-lg" onClick={scanFace}>
-                🔍 Scan Face
+              <button className="action-button-core" style={{ width: '100%', height: '40px', borderRadius: '8px' }} onClick={scanFace}>
+                Scan Structural Bounds
               </button>
             )}
             {(status === 'ready' || status === 'captured' || status === 'error') && (
-              <button className="btn btn-ghost" onClick={stopCamera}>
-                Stop Camera
+              <button className="action-button-core" style={{ background: 'transparent', border: '1px solid var(--input-border)', color: 'var(--text-main)', width: '100%', height: '40px', borderRadius: '8px' }} onClick={stopCamera}>
+                Terminate Feed
               </button>
             )}
           </div>
         )}
 
-        {/* General Reset Control */}
         {status === 'captured' && (
           <button 
-            className="btn btn-secondary" 
+            className="action-button-core" style={{ background: 'transparent', border: '1px solid var(--input-border)', color: 'var(--text-muted)', width: '100%', height: '40px', borderRadius: '8px' }}
             onClick={() => { 
               setStatus('idle'); 
               setPreviewUrl(null); 
-              setMessage(mode === 'camera' ? 'Camera inactive.' : 'Please upload a photo file.'); 
+              setMessage(mode === 'camera' ? 'Camera channel reset.' : 'Awaiting alternative file.'); 
             }}
           >
-            🔄 Reset & Choose Another
+            Clear and Re-initialize
           </button>
         )}
       </div>
